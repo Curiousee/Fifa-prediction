@@ -5,7 +5,7 @@ A full-stack web application for running a FIFA World Cup match prediction conte
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
+|-------|----------|
 | Frontend | React 18 + TypeScript + Vite |
 | Styling | Tailwind CSS |
 | Charts | Recharts (pie charts) |
@@ -42,6 +42,7 @@ fifa-prediction/
 │   │   ├── services/        # Axios API calls
 │   │   ├── types/           # Shared TypeScript interfaces
 │   │   └── App.tsx          # Routes
+│   ├── .env.production      # Production environment
 │   └── package.json
 │
 └── server/                  # Express API
@@ -51,6 +52,7 @@ fifa-prediction/
     │   ├── middleware/       # JWT auth + admin guard
     │   ├── models/          # Mongoose schemas
     │   └── routes/          # Express routers
+    ├── .env                 # Environment variables
     └── package.json
 ```
 
@@ -67,20 +69,15 @@ fifa-prediction/
 ### 1. Clone & Install
 
 ```bash
-# Install backend dependencies
-cd server
-npm install
-
-# Install frontend dependencies
-cd ../client
-npm install
+# Install all dependencies
+npm run install-all
 ```
 
 ### 2. Configure Environment
 
 ```bash
 # In /server, copy .env.example to .env
-cp .env.example .env
+cp server/.env.example server/.env
 ```
 
 Edit `/server/.env`:
@@ -107,17 +104,72 @@ db.users.updateOne(
 ### 4. Run Development Servers
 
 ```bash
-# Terminal 1 — Backend
-cd server
+# Start both frontend and backend concurrently
 npm run dev
+```
+
+Or in separate terminals:
+
+```bash
+# Terminal 1 — Backend
+npm run server
 
 # Terminal 2 — Frontend
-cd client
-npm run dev
+npm run client
 ```
 
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:5000/api/health
+
+---
+
+## Deployment
+
+### Build for Production
+
+```bash
+npm run build
+```
+
+This will:
+1. Install all dependencies
+2. Build the React frontend to `client/dist`
+3. Compile the TypeScript backend to `server/dist`
+
+### Run Production Build Locally
+
+```bash
+npm start
+```
+
+The server will serve the frontend build and API from a single port (default: 5000).
+
+### Deploy to Render
+
+**Setup Render Service:**
+
+1. **Environment Variables:**
+   ```
+   PORT=5000
+   MONGODB_URI=<your-mongodb-uri>
+   JWT_SECRET=<secure-random-string>
+   CLIENT_URL=<your-render-url>
+   NODE_ENV=production
+   ```
+
+2. **Build Command:**
+   ```
+   npm run build
+   ```
+
+3. **Start Command:**
+   ```
+   npm start
+   ```
+
+4. **Root Directory:** Leave as default or set to `/`
+
+The app will serve both the frontend and backend from the same Render service.
 
 ---
 
@@ -232,17 +284,18 @@ userId, points, reason, addedByAdmin, adminId, matchId
 
 ---
 
-## Production Build
+## Troubleshooting
 
-```bash
-# Build frontend
-cd client
-npm run build
+### White Screen Error "cannot get"
+- Ensure MongoDB is running
+- Check that both backend and frontend servers are running in development
+- Verify `.env` file is configured correctly
 
-# Build backend
-cd ../server
-npm run build
-npm start
-```
+### Build Issues
+- Clear `node_modules` and rebuild: `rm -rf node_modules client/node_modules server/node_modules && npm run install-all`
+- Ensure Node.js 18+ is installed: `node --version`
 
-Serve the `client/dist` folder via a static file server or CDN, pointing the API proxy to your Express server.
+### MongoDB Connection Error
+- Ensure MongoDB service is running
+- Verify `MONGODB_URI` in `.env` is correct
+- For MongoDB Atlas, check IP whitelist and connection string

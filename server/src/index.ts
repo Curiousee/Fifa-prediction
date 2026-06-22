@@ -1,7 +1,8 @@
-﻿import express from 'express';
+import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
 import { connectDB } from './config/db';
 import authRoutes from './routes/auth.routes';
 import matchRoutes from './routes/match.routes';
@@ -56,9 +57,18 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Serve static files from the client build directory in production
+const clientDistPath = path.join(__dirname, '../../client/dist');
+app.use(express.static(clientDistPath));
+
+// SPA fallback: serve index.html for all non-API routes
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(clientDistPath, 'index.html'));
+});
+
 app.listen(PORT, () => {
-  console.log(`\nðŸš€ Server running on http://localhost:${PORT}`);
-  console.log(`ðŸ“Š Environment: ${process.env.NODE_ENV || 'development'}\n`);
+  console.log(`\n🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}\n`);
 });
 
 export default app;
