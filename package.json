@@ -4,7 +4,7 @@
   "description": "FIFA prediction application",
   "scripts": {
     "install-all": "npm install && npm install --prefix client && npm install --prefix server",
-    "build": "npm run install-all && npm --prefix client exec -- vite build && npm --prefix server exec -- npm run build",
+    "build": "npm run install-all && cd client && vite build && cd ../server && npm run build",
     "start": "npm start --prefix server",
     "dev": "concurrently \"npm run dev --prefix client\" \"npm run dev --prefix server\"",
     "client": "npm run dev --prefix client",
