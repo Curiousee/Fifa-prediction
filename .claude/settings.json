@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sleep 3 && cat /tmp/server.log 2>/dev/null || echo \"no log yet\")",
+      "Read(//tmp/**)",
+      "Bash(curl -s http://localhost:5000/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000/api/health)",
+      "Bash(curl -s http://localhost:5000/api/matches)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "Bash(pkill -f \"vite\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5174/)",
+      "Bash(npx ts-node *)",
+      "Bash(curl -s http://localhost:5000/api/health)",
+      "Bash(curl -v http://localhost:5000/api/health)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

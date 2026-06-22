@@ -1,0 +1,248 @@
+# ⚽ FIFA World Cup Match Prediction Contest
+
+A full-stack web application for running a FIFA World Cup match prediction contest — built to replace a manual Google Forms workflow.
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18 + TypeScript + Vite |
+| Styling | Tailwind CSS |
+| Charts | Recharts (pie charts) |
+| Backend | Node.js + Express + TypeScript |
+| Database | MongoDB + Mongoose |
+| Auth | JWT (JSON Web Tokens) |
+| Icons | Lucide React |
+
+---
+
+## Project Structure
+
+```
+fifa-prediction/
+├── client/                  # React frontend (Vite)
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── match/       # MatchCard component
+│   │   │   └── ui/          # Navbar, LoadingSpinner, ProtectedRoute
+│   │   ├── context/         # AuthContext (JWT state)
+│   │   ├── pages/
+│   │   │   ├── Home.tsx
+│   │   │   ├── Login.tsx
+│   │   │   ├── Register.tsx
+│   │   │   ├── Dashboard.tsx
+│   │   │   ├── Matches.tsx
+│   │   │   ├── Leaderboard.tsx
+│   │   │   ├── PollResult.tsx
+│   │   │   └── admin/
+│   │   │       ├── AdminDashboard.tsx
+│   │   │       ├── CreateMatch.tsx
+│   │   │       ├── ManageUsers.tsx
+│   │   │       └── ManagePoints.tsx
+│   │   ├── services/        # Axios API calls
+│   │   ├── types/           # Shared TypeScript interfaces
+│   │   └── App.tsx          # Routes
+│   └── package.json
+│
+└── server/                  # Express API
+    ├── src/
+    │   ├── config/          # MongoDB connection
+    │   ├── controllers/     # Business logic
+    │   ├── middleware/       # JWT auth + admin guard
+    │   ├── models/          # Mongoose schemas
+    │   └── routes/          # Express routers
+    └── package.json
+```
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- MongoDB (local or Atlas)
+- npm or pnpm
+
+### 1. Clone & Install
+
+```bash
+# Install backend dependencies
+cd server
+npm install
+
+# Install frontend dependencies
+cd ../client
+npm install
+```
+
+### 2. Configure Environment
+
+```bash
+# In /server, copy .env.example to .env
+cp .env.example .env
+```
+
+Edit `/server/.env`:
+```env
+PORT=5000
+MONGODB_URI=mongodb://localhost:27017/fifa-prediction
+JWT_SECRET=your-super-secret-key-min-32-chars
+CLIENT_URL=http://localhost:5173
+NODE_ENV=development
+```
+
+### 3. Create Admin User
+
+After starting the server, register normally then update the role in MongoDB:
+
+```js
+// In MongoDB shell or Compass
+db.users.updateOne(
+  { email: "admin@yoursite.com" },
+  { $set: { role: "admin" } }
+)
+```
+
+### 4. Run Development Servers
+
+```bash
+# Terminal 1 — Backend
+cd server
+npm run dev
+
+# Terminal 2 — Frontend
+cd client
+npm run dev
+```
+
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:5000/api/health
+
+---
+
+## Features
+
+### User Features
+- Register / Login (JWT auth, 7-day token)
+- View upcoming, open, and completed matches
+- Submit predictions during open windows
+- View community prediction poll (pie chart) after submitting
+- Real-time leaderboard with rank highlighting
+
+### Admin Features
+- Dashboard with stats (users, matches, predictions)
+- Create matches with auto-generated prediction options
+- Declare match results → automatic point award with timestamps
+- Manual point adjustment with reason/comment (for migrating Google Form data)
+- View all users with point totals
+
+---
+
+## Scoring System
+
+| Scenario | Points |
+|----------|--------|
+| Correct prediction (base) | +10 |
+| First correct predictor | +5 bonus |
+| Second correct predictor | +4 bonus |
+| Third correct predictor | +3 bonus |
+| Incorrect prediction | 0 |
+
+Points are awarded automatically when admin declares the result. Bonus points are calculated based on prediction `createdAt` timestamp (earliest = highest bonus).
+
+---
+
+## API Endpoints
+
+### Auth
+| Method | Endpoint | Access |
+|--------|----------|--------|
+| POST | `/api/auth/register` | Public |
+| POST | `/api/auth/login` | Public |
+| GET | `/api/auth/me` | Auth |
+
+### Matches
+| Method | Endpoint | Access |
+|--------|----------|--------|
+| GET | `/api/matches` | Public |
+| GET | `/api/matches/:id` | Public |
+| POST | `/api/matches` | Admin |
+| PUT | `/api/matches/:id` | Admin |
+| POST | `/api/matches/:id/result` | Admin |
+
+### Predictions
+| Method | Endpoint | Access |
+|--------|----------|--------|
+| POST | `/api/predictions` | Auth |
+| GET | `/api/predictions/my` | Auth |
+| GET | `/api/predictions/poll/:matchId` | Public |
+
+### Leaderboard
+| Method | Endpoint | Access |
+|--------|----------|--------|
+| GET | `/api/leaderboard` | Public |
+
+### Admin
+| Method | Endpoint | Access |
+|--------|----------|--------|
+| GET | `/api/admin/stats` | Admin |
+| GET | `/api/admin/users` | Admin |
+| POST | `/api/admin/points/adjust` | Admin |
+| GET | `/api/admin/points/history/:userId` | Admin |
+
+---
+
+## Security
+
+- Passwords hashed with bcrypt (cost factor 12)
+- JWT tokens expire in 7 days
+- Rate limiting: 200 requests / 15 min per IP
+- Input validation via express-validator
+- Request body size limited to 10KB
+- CORS restricted to configured CLIENT_URL
+- One prediction per user per match (DB-level unique index)
+- Admin-only routes guarded by middleware
+
+---
+
+## Database Models
+
+### User
+```
+name, email (unique), password (hashed), role, points, joinedDate
+```
+
+### Match
+```
+matchNumber (unique), matchDate, teamA {name, flag}, teamB {name, flag},
+predictionStart, predictionEnd, status, result, options[]
+```
+
+### Prediction
+```
+userId, matchId, choice (teamA|teamB|draw), pointsAwarded, isCorrect
+Unique index: (userId, matchId)
+```
+
+### PointHistory
+```
+userId, points, reason, addedByAdmin, adminId, matchId
+```
+
+---
+
+## Production Build
+
+```bash
+# Build frontend
+cd client
+npm run build
+
+# Build backend
+cd ../server
+npm run build
+npm start
+```
+
+Serve the `client/dist` folder via a static file server or CDN, pointing the API proxy to your Express server.

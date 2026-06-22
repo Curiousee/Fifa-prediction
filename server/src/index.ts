@@ -1,0 +1,65 @@
+﻿import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import rateLimit from 'express-rate-limit';
+import { connectDB } from './config/db';
+import authRoutes from './routes/auth.routes';
+import matchRoutes from './routes/match.routes';
+import predictionRoutes from './routes/prediction.routes';
+import leaderboardRoutes from './routes/leaderboard.routes';
+import adminRoutes from './routes/admin.routes';
+import commentRoutes from './routes/comment.routes';
+
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+dotenv.config({ path: envFile });
+
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+connectDB();
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  message: { message: 'Too many requests from this IP, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const clientUrl = process.env.CLIENT_URL || 'http://localhost:5174';
+
+app.use(cors({
+  origin: (origin, callback) => {
+    const allowed = [clientUrl, 'http://localhost:5173', 'http://localhost:5174'];
+    if (!origin || allowed.includes(origin) || origin.endsWith('.onrender.com')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+app.use(express.json({ limit: '10kb' }));
+app.use('/api', limiter);
+
+app.use('/api/auth', authRoutes);
+app.use('/api/matches', matchRoutes);
+app.use('/api/predictions', predictionRoutes);
+app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/comments', commentRoutes);
+
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.listen(PORT, () => {
+  console.log(`\nðŸš€ Server running on http://localhost:${PORT}`);
+  console.log(`ðŸ“Š Environment: ${process.env.NODE_ENV || 'development'}\n`);
+});
+
+export default app;
+

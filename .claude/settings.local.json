@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(npm run *)",
+      "Bash(echo \"Server PID: $!\")",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(netstat -ano)",
+      "Bash(curl -s -X POST http://localhost:5000/api/auth/login -H \"Content-Type: application/json\" -d \"{\\\\\"email\\\\\":\\\\\"mahamood.roshan@tcs.com\\\\\",\\\\\"password\\\\\":\\\\\"2166602\\\\\"}\")",
+      "Bash(nslookup -type=SRV _mongodb._tcp.fifa-prediction.4qd611i.mongodb.net)",
+      "Bash(curl -s -X POST http://localhost:5000/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"mahamood.roshan@tcs.com\",\"password\":\"2166602\"}')",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e ' *)",
+      "Bash(cat)",
+      "Bash(node /tmp/fix_api3.js)",
+      "Bash(node /tmp/fix_login.js)",
+      "Bash(node)"
+    ]
+  }
+}
