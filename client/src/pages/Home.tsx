@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Trophy,
@@ -11,9 +11,43 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
+import axios from 'axios';
+
+interface Stats {
+  totalUsers: number;
+  totalMatches: number;
+  totalPredictions: number;
+  correctPredictions: number;
+  totalCountries: number;
+}
 
 const Home: React.FC = () => {
   const { user } = useAuth();
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await axios.get('/api/stats/public');
+        setStats(response.data);
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+        // Use fallback values if API fails
+        setStats({
+          totalUsers: 500,
+          totalMatches: 64,
+          totalPredictions: 15000,
+          correctPredictions: 0,
+          totalCountries: 48,
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -79,24 +113,30 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* ── Stats Bar ── */}
+      {/* ── Stats Bar (Dynamic) ── */}
       <section className="bg-gray-900 border-y border-gray-800 py-10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {[
-              { label: 'Participants', value: '500+', icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-              { label: 'Matches', value: '64', icon: Trophy, color: 'text-green-400', bg: 'bg-green-500/10' },
-              { label: 'Points Awarded', value: '15K+', icon: Star, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
-              { label: 'Countries', value: '48', icon: Target, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-            ].map(({ label, value, icon: Icon, color, bg }) => (
-              <div key={label} className="flex flex-col items-center">
-                <div className={`w-12 h-12 ${bg} rounded-xl flex items-center justify-center mb-3`}>
-                  <Icon size={22} className={color} />
-                </div>
-                <div className="text-3xl font-black text-white">{value}</div>
-                <div className="text-gray-400 text-sm mt-1">{label}</div>
+            {loading ? (
+              <div className="col-span-2 md:col-span-4 text-gray-400">
+                Loading stats...
               </div>
-            ))}
+            ) : (
+              [
+                { label: 'Participants', value: stats?.totalUsers || 0, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+                { label: 'Matches', value: stats?.totalMatches || 0, icon: Trophy, color: 'text-green-400', bg: 'bg-green-500/10' },
+                { label: 'Total Predictions', value: stats?.totalPredictions || 0, icon: Star, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
+                { label: 'Countries', value: stats?.totalCountries || 0, icon: Target, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+              ].map(({ label, value, icon: Icon, color, bg }) => (
+                <div key={label} className="flex flex-col items-center">
+                  <div className={`w-12 h-12 ${bg} rounded-xl flex items-center justify-center mb-3`}>
+                    <Icon size={22} className={color} />
+                  </div>
+                  <div className="text-3xl font-black text-white">{value}</div>
+                  <div className="text-gray-400 text-sm mt-1">{label}</div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -135,7 +175,7 @@ const Home: React.FC = () => {
                 step: '03',
                 title: 'Earn Points & Rank',
                 description:
-                  'Get 10 base points per correct prediction. The first 3 correct predictors earn +5, +4, and +3 bonus points.',
+                  'Get 2 points for the first correct prediction, 1 point for others. The more you predict correctly, the higher you rank!',
                 icon: TrendingUp,
                 gradient: 'from-yellow-600 to-yellow-400',
               },
@@ -164,38 +204,24 @@ const Home: React.FC = () => {
             Scoring System
           </h2>
           <p className="text-gray-400 text-lg mb-12">
-            Be early, be bold — early birds earn bonus points!
+            Simple and fair — first correct prediction gets 2 points, others get 1
           </p>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
             {[
               {
-                label: 'Base Points',
-                value: '10',
-                desc: 'Any correct prediction',
-                borderColor: 'border-gray-700',
-                textColor: 'text-white',
-              },
-              {
-                label: '🥇 1st Correct',
-                value: '+5',
-                desc: 'First to get it right',
+                label: '🥇 First Correct',
+                value: '2',
+                desc: 'First person to predict correctly',
                 borderColor: 'border-yellow-500/60',
                 textColor: 'text-yellow-400',
               },
               {
-                label: '🥈 2nd Correct',
-                value: '+4',
-                desc: 'Second to get it right',
+                label: '🥈 Second & After',
+                value: '1',
+                desc: 'Everyone else who predicted correctly',
                 borderColor: 'border-gray-400/50',
                 textColor: 'text-gray-300',
-              },
-              {
-                label: '🥉 3rd Correct',
-                value: '+3',
-                desc: 'Third to get it right',
-                borderColor: 'border-orange-600/50',
-                textColor: 'text-orange-400',
               },
             ].map(({ label, value, desc, borderColor, textColor }) => (
               <div
@@ -237,8 +263,8 @@ const Home: React.FC = () => {
               },
               {
                 icon: '⚡',
-                title: 'Early Bird Bonus',
-                desc: 'Submit predictions early to earn extra points. The faster you predict, the more you can earn.',
+                title: 'Fair Scoring',
+                desc: 'First correct prediction wins 2 points, rest get 1 point. No surprises, pure merit-based ranking.',
               },
               {
                 icon: '📱',
