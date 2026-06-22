@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "description": "FIFA prediction application",
   "scripts": {
-    "install-all": "npm install && cd client && npm install && cd ../server && npm install",
-    "build": "npm run install-all && cd client && npm run build && cd ../server && npm run build",
-    "start": "cd server && npm start",
-    "dev": "concurrently \"cd client && npm run dev\" \"cd server && npm run dev\"",
-    "client": "cd client && npm run dev",
-    "server": "cd server && npm run dev"
+    "install-all": "npm install && npm install --prefix client && npm install --prefix server",
+    "build": "npm run install-all && npm run build --prefix client && npm run build --prefix server",
+    "start": "npm start --prefix server",
+    "dev": "concurrently \"npm run dev --prefix client\" \"npm run dev --prefix server\"",
+    "client": "npm run dev --prefix client",
+    "server": "npm run dev --prefix server"
   },
   "keywords": ["fifa", "prediction", "sports"],
   "author": "",
