@@ -31,6 +31,8 @@ const ManagePoints: React.FC = () => {
           const preUser = userList.find((u) => u._id === preUserId);
           if (preUser) handleSelectUser(preUser);
         }
+      } catch {
+        toast.error('Failed to load users');
       } finally {
         setIsLoading(false);
       }

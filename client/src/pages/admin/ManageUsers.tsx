@@ -7,6 +7,7 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { format } from 'date-fns';
 import type { User } from '../../types';
 import { SUPER_ADMIN_EMAIL } from '../../types';
+import toast from 'react-hot-toast';
 
 const ManageUsers: React.FC = () => {
   const { user: me } = useAuth();
@@ -83,6 +84,8 @@ const ManageUsers: React.FC = () => {
       try {
         const res = await adminAPI.getUsers();
         setUsers(res.data as (User & { _id: string; joinedDate: string; role: string })[]);
+      } catch {
+        toast.error('Failed to load users');
       } finally {
         setIsLoading(false);
       }

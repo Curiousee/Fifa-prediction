@@ -56,7 +56,8 @@ export const authenticate = async (
       isSuperAdmin: user.email === SUPER_ADMIN_EMAIL || user.isSuperAdmin === true,
     };
     next();
-  } catch {
+  } catch (error) {
+    console.error('authenticate error:', error);
     res.status(401).json({ message: 'Invalid or expired token' });
   }
 };

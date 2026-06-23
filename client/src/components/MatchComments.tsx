@@ -21,6 +21,7 @@ const MatchComments: React.FC<Props> = ({ matchId, matchLabel }) => {
   const [open, setOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [text, setText] = useState('');
   const [posting, setPosting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -32,7 +33,10 @@ const MatchComments: React.FC<Props> = ({ matchId, matchLabel }) => {
         const res = await commentsAPI.getMatch(matchId);
         setComments((res.data as Comment[]).slice().reverse());
         setLoaded(true);
-      } catch { /* silent */ }
+      } catch {
+        setLoadError(true);
+        setLoaded(true);
+      }
     };
     load();
   }, [open, loaded, matchId]);
@@ -87,6 +91,8 @@ const MatchComments: React.FC<Props> = ({ matchId, matchLabel }) => {
           <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
             {!loaded ? (
               <p className="text-xs text-gray-600 text-center py-2">Loading...</p>
+            ) : loadError ? (
+              <p className="text-xs text-red-400 text-center py-2">Failed to load comments</p>
             ) : comments.length === 0 ? (
               <p className="text-xs text-gray-600 text-center py-3">No comments yet. Start the discussion!</p>
             ) : (

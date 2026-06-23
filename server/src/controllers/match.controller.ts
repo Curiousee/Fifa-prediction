@@ -41,7 +41,8 @@ export const getAllMatches = async (
 
     await Promise.all(updates);
     res.json(result);
-  } catch {
+  } catch (error) {
+    console.error('getAllMatches error:', error);
     res.status(500).json({ message: 'Error fetching matches' });
   }
 };
@@ -57,7 +58,8 @@ export const getMatchById = async (
       return;
     }
     res.json(match);
-  } catch {
+  } catch (error) {
+    console.error('getMatchById error:', error);
     res.status(500).json({ message: 'Error fetching match' });
   }
 };
@@ -98,7 +100,8 @@ export const createMatch = async (
     });
 
     res.status(201).json(match);
-  } catch {
+  } catch (error) {
+    console.error('createMatch error:', error);
     res.status(500).json({ message: 'Error creating match' });
   }
 };
@@ -118,7 +121,8 @@ export const updateMatch = async (
       return;
     }
     res.json(match);
-  } catch {
+  } catch (error) {
+    console.error('updateMatch error:', error);
     res.status(500).json({ message: 'Error updating match' });
   }
 };

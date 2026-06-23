@@ -37,7 +37,8 @@ export const getLeaderboard = async (
     }));
 
     res.json(leaderboard);
-  } catch {
+  } catch (error) {
+    console.error('getLeaderboard error:', error);
     res.status(500).json({ message: 'Error fetching leaderboard' });
   }
 };
@@ -112,7 +113,8 @@ export const getDailyLeaderboard = async (
     });
 
     res.json(leaderboard);
-  } catch {
+  } catch (error) {
+    console.error('getDailyLeaderboard error:', error);
     res.status(500).json({ message: 'Error fetching daily leaderboard' });
   }
 };
