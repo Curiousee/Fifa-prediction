@@ -9,9 +9,17 @@ export const getDashboardStats = async (
   res: Response
 ): Promise<void> => {
   try {
-    const stats = await fetchDashboardStats();
-    res.json(stats);
-  } catch {
+    const [totalUsers, totalMatches, totalPredictions, completedMatches] =
+      await Promise.all([
+        User.countDocuments({ role: 'user' }),
+        Match.countDocuments(),
+        Prediction.countDocuments(),
+        Match.countDocuments({ status: 'completed' }),
+      ]);
+
+    res.json({ totalUsers, totalMatches, totalPredictions, completedMatches });
+  } catch (error) {
+    console.error('getDashboardStats error:', error);
     res.status(500).json({ message: 'Error fetching stats' });
   }
 };
@@ -44,7 +52,8 @@ export const getPublicStats = async (
       correctPredictions,
       totalCountries: countriesSet.size,
     });
-  } catch {
+  } catch (error) {
+    console.error('getPublicStats error:', error);
     res.status(500).json({ message: 'Error fetching public stats' });
   }
 };

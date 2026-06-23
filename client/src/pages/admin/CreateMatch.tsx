@@ -66,13 +66,14 @@ const CreateMatch: React.FC = () => {
         const fmt = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, '');
         const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${fmt(today)}-${fmt(future)}&limit=40`;
         const res = await fetch(url);
+        if (!res.ok) throw new Error(`ESPN API returned ${res.status}`);
         const json = await res.json();
         const events: ESPNEvent[] = (json.events || []).filter(
           (e: ESPNEvent) => e.competitions?.[0]?.competitors?.length === 2
         );
         setUpcomingESPN(events);
       } catch {
-        // silently fail — admin can still use manual form
+        toast.error('Could not load upcoming FIFA matches from ESPN');
       } finally {
         setEspnLoading(false);
       }

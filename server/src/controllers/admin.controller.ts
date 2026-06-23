@@ -10,9 +10,17 @@ export const getDashboardStats = async (
   res: Response
 ): Promise<void> => {
   try {
-    const stats = await fetchDashboardStats();
-    res.json(stats);
-  } catch {
+    const [totalUsers, totalMatches, totalPredictions, completedMatches] =
+      await Promise.all([
+        User.countDocuments({ role: 'user' }),
+        Match.countDocuments(),
+        Prediction.countDocuments(),
+        Match.countDocuments({ status: 'completed' }),
+      ]);
+
+    res.json({ totalUsers, totalMatches, totalPredictions, completedMatches });
+  } catch (error) {
+    console.error('getDashboardStats error:', error);
     res.status(500).json({ message: 'Error fetching stats' });
   }
 };
@@ -26,7 +34,8 @@ export const getAllUsers = async (
       .select('-password')
       .sort({ points: -1 });
     res.json(users);
-  } catch {
+  } catch (error) {
+    console.error('getAllUsers error:', error);
     res.status(500).json({ message: 'Error fetching users' });
   }
 };
@@ -73,7 +82,8 @@ export const adjustPoints = async (
       message: 'Points adjusted successfully',
       user: { id: user._id, name: user.name, points: user.points },
     });
-  } catch {
+  } catch (error) {
+    console.error('adjustPoints error:', error);
     res.status(500).json({ message: 'Error adjusting points' });
   }
 };
@@ -90,7 +100,8 @@ export const getUserPointHistory = async (
       .limit(100);
 
     res.json(history);
-  } catch {
+  } catch (error) {
+    console.error('getUserPointHistory error:', error);
     res.status(500).json({ message: 'Error fetching point history' });
   }
 };
@@ -118,7 +129,8 @@ export const deleteUser = async (
     await User.findByIdAndDelete(userId);
 
     res.json({ message: 'User deleted successfully' });
-  } catch {
+  } catch (error) {
+    console.error('deleteUser error:', error);
     res.status(500).json({ message: 'Error deleting user' });
   }
 };
@@ -158,7 +170,8 @@ export const updateUserRole = async (
     }
 
     res.json({ message: 'Role updated successfully', user });
-  } catch {
+  } catch (error) {
+    console.error('updateUserRole error:', error);
     res.status(500).json({ message: 'Error updating role' });
   }
 };
@@ -200,7 +213,8 @@ export const updateSuperAdminAccess = async (
     }
 
     res.json({ message: 'Full access updated', user });
-  } catch {
+  } catch (error) {
+    console.error('updateSuperAdminAccess error:', error);
     res.status(500).json({ message: 'Error updating full access' });
   }
 };
@@ -235,7 +249,8 @@ export const updateScoreAccess = async (
     }
 
     res.json({ message: 'Score access updated', user });
-  } catch {
+  } catch (error) {
+    console.error('updateScoreAccess error:', error);
     res.status(500).json({ message: 'Error updating score access' });
   }
 };

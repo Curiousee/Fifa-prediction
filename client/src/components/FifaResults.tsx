@@ -34,10 +34,13 @@ const FifaResults: React.FC = () => {
       try {
         const today = new Date();
         const start = new Date('2026-06-11');
+        const future = new Date(today);
+        future.setDate(future.getDate() + 3);
         const fmt = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, '');
-        const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${fmt(start)}-${fmt(today)}&limit=50`;
+        const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${fmt(start)}-${fmt(future)}&limit=50`;
 
         const res = await fetch(url);
+        if (!res.ok) throw new Error(`ESPN API returned ${res.status}`);
         const json = await res.json();
         const all: ESPNEvent[] = json.events || [];
         all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -53,7 +56,9 @@ const FifaResults: React.FC = () => {
 
   const completed = events.filter(e => e.status.type.state === 'post');
   const live = events.filter(e => e.status.type.state === 'in');
-  const upcoming = events.filter(e => e.status.type.state === 'pre').slice(0, 3);
+  const upcoming = events.filter(e => e.status.type.state === 'pre')
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 3);
 
   const renderMatch = (event: ESPNEvent) => {
     const [home, away] = event.competitions?.[0]?.competitors ?? [];
