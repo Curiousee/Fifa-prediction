@@ -65,7 +65,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         joinedDate: user.joinedDate,
       },
     });
-  } catch {
+  } catch (error) {
+    console.error('register error:', error);
     res.status(500).json({ message: 'Server error during registration' });
   }
 };
@@ -105,7 +106,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         joinedDate: user.joinedDate,
       },
     });
-  } catch {
+  } catch (error) {
+    console.error('login error:', error);
     res.status(500).json({ message: 'Server error during login' });
   }
 };
@@ -125,7 +127,8 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
       points: user.points,
       joinedDate: user.joinedDate,
     });
-  } catch {
+  } catch (error) {
+    console.error('getMe error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

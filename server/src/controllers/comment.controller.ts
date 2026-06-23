@@ -10,7 +10,8 @@ export const getGeneralComments = async (_req: AuthRequest, res: Response): Prom
       .limit(100)
       .populate('userId', 'name');
     res.json(comments);
-  } catch {
+  } catch (error) {
+    console.error('getGeneralComments error:', error);
     res.status(500).json({ message: 'Error fetching comments' });
   }
 };
@@ -23,7 +24,8 @@ export const getMatchComments = async (req: AuthRequest, res: Response): Promise
       .limit(100)
       .populate('userId', 'name');
     res.json(comments);
-  } catch {
+  } catch (error) {
+    console.error('getMatchComments error:', error);
     res.status(500).json({ message: 'Error fetching match comments' });
   }
 };
@@ -55,7 +57,8 @@ export const postComment = async (req: AuthRequest, res: Response): Promise<void
 
     const populated = await comment.populate('userId', 'name');
     res.status(201).json(populated);
-  } catch {
+  } catch (error) {
+    console.error('postComment error:', error);
     res.status(500).json({ message: 'Error posting comment' });
   }
 };
@@ -76,7 +79,8 @@ export const deleteComment = async (req: AuthRequest, res: Response): Promise<vo
     }
     await comment.deleteOne();
     res.json({ message: 'Deleted' });
-  } catch {
+  } catch (error) {
+    console.error('deleteComment error:', error);
     res.status(500).json({ message: 'Error deleting comment' });
   }
 };

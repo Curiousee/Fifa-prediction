@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { commentsAPI } from '../services/api';
 import { useAuth } from '../context/useAuth';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import toast from 'react-hot-toast';
 
 interface Comment {
   _id: string;
@@ -26,6 +27,8 @@ const Community: React.FC = () => {
       const res = await commentsAPI.getGeneral();
       // server returns newest-first; reverse for chat order
       setComments((res.data as Comment[]).slice().reverse());
+    } catch {
+      toast.error('Failed to load comments');
     } finally {
       setIsLoading(false);
     }

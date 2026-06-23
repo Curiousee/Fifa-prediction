@@ -17,7 +17,8 @@ export const getDashboardStats = async (
       ]);
 
     res.json({ totalUsers, totalMatches, totalPredictions, completedMatches });
-  } catch {
+  } catch (error) {
+    console.error('getDashboardStats error:', error);
     res.status(500).json({ message: 'Error fetching stats' });
   }
 };
@@ -50,7 +51,8 @@ export const getPublicStats = async (
       correctPredictions,
       totalCountries: countriesSet.size,
     });
-  } catch {
+  } catch (error) {
+    console.error('getPublicStats error:', error);
     res.status(500).json({ message: 'Error fetching public stats' });
   }
 };

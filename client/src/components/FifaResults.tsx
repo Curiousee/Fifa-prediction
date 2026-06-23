@@ -40,6 +40,7 @@ const FifaResults: React.FC = () => {
         const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${fmt(start)}-${fmt(future)}&limit=50`;
 
         const res = await fetch(url);
+        if (!res.ok) throw new Error(`ESPN API returned ${res.status}`);
         const json = await res.json();
         const all: ESPNEvent[] = json.events || [];
         all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());

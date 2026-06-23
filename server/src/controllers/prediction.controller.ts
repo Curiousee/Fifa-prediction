@@ -47,7 +47,8 @@ export const submitPrediction = async (
       message: 'Prediction recorded successfully!',
       prediction,
     });
-  } catch {
+  } catch (error) {
+    console.error('submitPrediction error:', error);
     res.status(500).json({ message: 'Error submitting prediction' });
   }
 };
@@ -114,7 +115,8 @@ export const getPollResults = async (
     ];
 
     res.json({ match, total, results });
-  } catch {
+  } catch (error) {
+    console.error('getPollResults error:', error);
     res.status(500).json({ message: 'Error fetching poll results' });
   }
 };
@@ -129,7 +131,8 @@ export const getUserPredictions = async (
       .sort({ createdAt: -1 });
 
     res.json(predictions);
-  } catch {
+  } catch (error) {
+    console.error('getUserPredictions error:', error);
     res.status(500).json({ message: 'Error fetching predictions' });
   }
 };

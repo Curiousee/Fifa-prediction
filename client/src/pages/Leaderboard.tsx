@@ -6,6 +6,7 @@ import { leaderboardAPI } from '../services/api';
 import { useAuth } from '../context/useAuth';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import type { LeaderboardEntry, DailyLeaderboardEntry } from '../types';
+import toast from 'react-hot-toast';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 type Tab = 'overall' | 'daily';
@@ -31,6 +32,8 @@ const Leaderboard: React.FC = () => {
       try {
         const res = await leaderboardAPI.get();
         setEntries(res.data as LeaderboardEntry[]);
+      } catch {
+        toast.error('Failed to load leaderboard');
       } finally {
         setOverallLoading(false);
       }
@@ -48,6 +51,8 @@ const Leaderboard: React.FC = () => {
         const dates: string[] = (res.data as { dates: string[] }).dates;
         setAvailableDates(dates);
         if (dates.length > 0) setSelectedDate(dates[0]);
+      } catch {
+        toast.error('Failed to load available dates');
       } finally {
         setDatesLoading(false);
       }
@@ -62,6 +67,8 @@ const Leaderboard: React.FC = () => {
     try {
       const res = await leaderboardAPI.getDaily(date);
       setDailyEntries(res.data as DailyLeaderboardEntry[]);
+    } catch {
+      toast.error('Failed to load daily leaderboard');
     } finally {
       setDailyLoading(false);
     }
