@@ -2,6 +2,7 @@ import { Response } from 'express';
 import User from '../models/User';
 import Prediction from '../models/Prediction';
 import PointHistory from '../models/PointHistory';
+import Match from '../models/Match';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { fetchDashboardStats } from '../utils/dashboard-stats';
 
