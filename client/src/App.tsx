@@ -20,6 +20,7 @@ import Leaderboard from './pages/Leaderboard';
 import PollResult from './pages/PollResult';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import CreateMatch from './pages/admin/CreateMatch';
+import EditMatch from './pages/admin/EditMatch';
 import ManageUsers from './pages/admin/ManageUsers';
 import ManagePoints from './pages/admin/ManagePoints';
 import Community from './pages/Community';
@@ -72,6 +73,14 @@ const App: React.FC = () => {
                 element={
                   <ProtectedRoute adminOnly>
                     <CreateMatch />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/edit-match/:id"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <EditMatch />
                   </ProtectedRoute>
                 }
               />

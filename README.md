@@ -87,19 +87,15 @@ MONGODB_URI=mongodb://localhost:27017/fifa-prediction
 JWT_SECRET=your-super-secret-key-min-32-chars
 CLIENT_URL=http://localhost:5173
 NODE_ENV=development
+SUPER_ADMIN_EMAIL=admin@yoursite.com
+ADMIN_EMAIL=admin@yoursite.com
+ADMIN_PASSWORD=change-me-to-a-strong-password
+ADMIN_NAME=Admin
 ```
 
-### 3. Create Admin User
+### 3. Admin User
 
-After starting the server, register normally then update the role in MongoDB:
-
-```js
-// In MongoDB shell or Compass
-db.users.updateOne(
-  { email: "admin@yoursite.com" },
-  { $set: { role: "admin" } }
-)
-```
+The admin user is automatically seeded on startup when `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set in `.env`. Change these to a strong password immediately after first login.
 
 ### 4. Run Development Servers
 
@@ -155,6 +151,10 @@ The server will serve the frontend build and API from a single port (default: 50
    JWT_SECRET=<secure-random-string>
    CLIENT_URL=<your-render-url>
    NODE_ENV=production
+   SUPER_ADMIN_EMAIL=<your-admin-email>
+   ADMIN_EMAIL=<your-admin-email>
+   ADMIN_PASSWORD=<strong-password>
+   ADMIN_NAME=Admin
    ```
 
 2. **Build Command:**

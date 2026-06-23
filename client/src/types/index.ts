@@ -1,4 +1,4 @@
-﻿export const SUPER_ADMIN_EMAIL = 'mahamood.roshan@tcs.com';
+﻿
 
 export interface User {
   id: string;
@@ -59,7 +59,6 @@ export interface LeaderboardEntry {
   rank: number;
   id: string;
   name: string;
-  email: string;
   points: number;
   joinedDate: string;
   lastPredictionAt: string | null;
@@ -69,7 +68,6 @@ export interface DailyLeaderboardEntry {
   rank: number;
   id: string;
   name: string;
-  email: string;
   points: number;
   correctPicks: number;
 }

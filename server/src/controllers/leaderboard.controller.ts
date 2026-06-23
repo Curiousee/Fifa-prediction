@@ -10,7 +10,7 @@ export const getLeaderboard = async (
 ): Promise<void> => {
   try {
     const users = await User.find({ role: 'user' })
-      .select('name email points joinedDate')
+      .select('name points joinedDate')
       .sort({ points: -1, joinedDate: 1 })
       .limit(200);
 
@@ -30,7 +30,6 @@ export const getLeaderboard = async (
       rank: index + 1,
       id: user._id,
       name: user.name,
-      email: user.email,
       points: user.points,
       joinedDate: user.joinedDate,
       lastPredictionAt: lastPredMap.get(user._id.toString()) ?? null,
@@ -96,7 +95,7 @@ export const getDailyLeaderboard = async (
     }
 
     const userIds = results.map((r) => r._id);
-    const users = await User.find({ _id: { $in: userIds } }).select('name email');
+    const users = await User.find({ _id: { $in: userIds } }).select('name');
     const userMap = new Map(users.map((u) => [u._id.toString(), u]));
 
     const leaderboard = results.map((r, index) => {
@@ -105,7 +104,6 @@ export const getDailyLeaderboard = async (
         rank: index + 1,
         id: r._id,
         name: u?.name ?? 'Unknown',
-        email: u?.email ?? '',
         points: r.points,
         correctPicks: r.correctPicks,
       };

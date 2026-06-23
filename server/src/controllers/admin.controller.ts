@@ -169,8 +169,9 @@ export const updateSuperAdminAccess = async (
 ): Promise<void> => {
   try {
     // Only the original roshan account can grant full super-admin access
-    if (req.user?.email !== 'mahamood.roshan@tcs.com') {
-      res.status(403).json({ message: 'Only roshan can grant full access' });
+    const superAdminEmail = process.env.SUPER_ADMIN_EMAIL || '';
+    if (!superAdminEmail || req.user?.email !== superAdminEmail) {
+      res.status(403).json({ message: 'Only the super admin can grant full access' });
       return;
     }
 
