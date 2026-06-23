@@ -123,6 +123,30 @@ export const updateMatch = async (
   }
 };
 
+export const deleteMatch = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const match = await Match.findById(req.params['id']);
+    if (!match) {
+      res.status(404).json({ message: 'Match not found' });
+      return;
+    }
+
+    // Delete associated predictions
+    await Prediction.deleteMany({ matchId: match._id });
+
+    // Delete associated point history entries
+    await PointHistory.deleteMany({ matchId: match._id });
+
+    await Match.findByIdAndDelete(match._id);
+    res.json({ message: 'Match deleted successfully' });
+  } catch {
+    res.status(500).json({ message: 'Error deleting match' });
+  }
+};
+
 export const declareResult = async (
   req: AuthRequest,
   res: Response

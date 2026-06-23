@@ -50,6 +50,7 @@ export const matchAPI = {
   }) => api.post('/matches', data),
   update: (id: string, data: Record<string, unknown>) =>
     api.put(`/matches/${id}`, data),
+  delete: (id: string) => api.delete(`/matches/${id}`),
   declareResult: (id: string, result: string) =>
     api.post(`/matches/${id}/result`, { result }),
 };
