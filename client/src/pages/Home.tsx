@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   Trophy,
@@ -11,43 +11,9 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
-import axios from 'axios';
-
-interface Stats {
-  totalUsers: number;
-  totalMatches: number;
-  totalPredictions: number;
-  correctPredictions: number;
-  totalCountries: number;
-}
 
 const Home: React.FC = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await axios.get('/api/stats/public');
-        setStats(response.data);
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-        // Use fallback values if API fails
-        setStats({
-          totalUsers: 500,
-          totalMatches: 64,
-          totalPredictions: 15000,
-          correctPredictions: 0,
-          totalCountries: 48,
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
 
   return (
     <div className="min-h-screen">
@@ -84,8 +50,8 @@ const Home: React.FC = () => {
 
           <p className="text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
             Join the ultimate World Cup prediction contest. Pick match winners
-            before kickoff, earn bonus points for early predictions, and rise
-            to the top of the leaderboard!
+            before kickoff — the first correct pick earns 2 points, everyone
+            else who gets it right earns 1 point!
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -113,33 +79,7 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* ── Stats Bar (Dynamic) ── */}
-      <section className="bg-gray-900 border-y border-gray-800 py-10">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {loading ? (
-              <div className="col-span-2 md:col-span-4 text-gray-400">
-                Loading stats...
-              </div>
-            ) : (
-              [
-                { label: 'Participants', value: stats?.totalUsers || 0, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-                { label: 'Matches', value: stats?.totalMatches || 0, icon: Trophy, color: 'text-green-400', bg: 'bg-green-500/10' },
-                { label: 'Total Predictions', value: stats?.totalPredictions || 0, icon: Star, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
-                { label: 'Countries', value: stats?.totalCountries || 0, icon: Target, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-              ].map(({ label, value, icon: Icon, color, bg }) => (
-                <div key={label} className="flex flex-col items-center">
-                  <div className={`w-12 h-12 ${bg} rounded-xl flex items-center justify-center mb-3`}>
-                    <Icon size={22} className={color} />
-                  </div>
-                  <div className="text-3xl font-black text-white">{value}</div>
-                  <div className="text-gray-400 text-sm mt-1">{label}</div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </section>
+
 
       {/* ── How It Works ── */}
       <section className="py-20 bg-gray-950">
@@ -175,7 +115,7 @@ const Home: React.FC = () => {
                 step: '03',
                 title: 'Earn Points & Rank',
                 description:
-                  'Get 2 points for the first correct prediction, 1 point for others. The more you predict correctly, the higher you rank!',
+                  'The first person to get it right earns 2 points. Everyone else who gets it right earns 1 point. Wrong predictions earn 0.',
                 icon: TrendingUp,
                 gradient: 'from-yellow-600 to-yellow-400',
               },
@@ -204,31 +144,38 @@ const Home: React.FC = () => {
             Scoring System
           </h2>
           <p className="text-gray-400 text-lg mb-12">
-            Simple and fair — first correct prediction gets 2 points, others get 1
+            Simple and fair — first correct pick wins the bonus!
           </p>
 
-          <div className="grid grid-cols-2 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
             {[
               {
                 label: '🥇 First Correct',
-                value: '2',
+                value: '2 pts',
                 desc: 'First person to predict correctly',
                 borderColor: 'border-yellow-500/60',
                 textColor: 'text-yellow-400',
               },
               {
-                label: '🥈 Second & After',
-                value: '1',
-                desc: 'Everyone else who predicted correctly',
-                borderColor: 'border-gray-400/50',
-                textColor: 'text-gray-300',
+                label: '✅ Others Correct',
+                value: '1 pt',
+                desc: 'Any other correct prediction',
+                borderColor: 'border-green-500/50',
+                textColor: 'text-green-400',
+              },
+              {
+                label: '❌ Wrong',
+                value: '0 pts',
+                desc: 'Incorrect prediction',
+                borderColor: 'border-gray-700',
+                textColor: 'text-gray-500',
               },
             ].map(({ label, value, desc, borderColor, textColor }) => (
               <div
                 key={label}
                 className={`bg-gray-900 border-2 ${borderColor} rounded-2xl p-6 transition-transform hover:scale-105`}
               >
-                <div className={`text-5xl font-black ${textColor} mb-2`}>
+                <div className={`text-4xl font-black ${textColor} mb-2`}>
                   {value}
                 </div>
                 <div className="text-sm font-bold text-gray-200 mb-1">
@@ -263,8 +210,8 @@ const Home: React.FC = () => {
               },
               {
                 icon: '⚡',
-                title: 'Fair Scoring',
-                desc: 'First correct prediction wins 2 points, rest get 1 point. No surprises, pure merit-based ranking.',
+                title: 'First Pick Bonus',
+                desc: 'Be the first to predict correctly and earn 2 points. All other correct predictions earn 1 point.',
               },
               {
                 icon: '📱',

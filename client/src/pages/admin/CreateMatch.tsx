@@ -152,11 +152,11 @@ const CreateMatch: React.FC = () => {
     try {
       await matchAPI.create({
         matchNumber: parseInt(form.matchNumber, 10),
-        matchDate: form.matchDate,
+        matchDate: new Date(form.matchDate).toISOString(),
         teamA: { name: form.teamAName.trim(), flag: form.teamAFlag.trim() },
         teamB: { name: form.teamBName.trim(), flag: form.teamBFlag.trim() },
-        predictionStart: form.predictionStart,
-        predictionEnd: form.predictionEnd,
+        predictionStart: new Date(form.predictionStart).toISOString(),
+        predictionEnd: new Date(form.predictionEnd).toISOString(),
       });
 
       toast.success(`Match ${form.matchNumber} created! Prediction options auto-generated.`);
@@ -208,65 +208,86 @@ const CreateMatch: React.FC = () => {
           </p>
         )}
 
-        {!espnLoading && upcomingESPN.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {upcomingESPN.map((event) => {
-              const comp = event.competitions[0];
-              const home = comp.competitors.find(c => c.homeAway === 'home') ?? comp.competitors[0];
-              const away = comp.competitors.find(c => c.homeAway === 'away') ?? comp.competitors[1];
-              const isSelected = selectedESPNId === event.id;
+        {!espnLoading && upcomingESPN.length > 0 && (() => {
+          // Group by local date, show max 2 days
+          const byDate: Record<string, ESPNEvent[]> = {};
+          upcomingESPN.forEach((event) => {
+            const dateKey = format(new Date(event.date), 'yyyy-MM-dd');
+            if (!byDate[dateKey]) byDate[dateKey] = [];
+            byDate[dateKey].push(event);
+          });
+          const datesToShow = Object.keys(byDate).sort().slice(0, 2);
 
-              return (
-                <button
-                  key={event.id}
-                  type="button"
-                  onClick={() => handleSelectESPN(event)}
-                  className={`text-left p-4 rounded-xl border transition-all ${
-                    isSelected
-                      ? 'border-green-500 bg-green-500/10 ring-1 ring-green-500/40'
-                      : 'border-gray-700 bg-gray-800/50 hover:border-gray-500 hover:bg-gray-800'
-                  }`}
-                >
-                  {/* Date */}
-                  <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-3">
+          return (
+            <div className="space-y-5">
+              {datesToShow.map((dateKey) => (
+                <div key={dateKey}>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                     <Calendar size={11} />
-                    {format(new Date(event.date), 'MMM d, yyyy · HH:mm')}
-                    {isSelected && (
-                      <span className="ml-auto text-green-400 font-semibold">Selected ✓</span>
-                    )}
+                    {format(new Date(dateKey), 'EEEE, MMM d, yyyy')}
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {byDate[dateKey].map((event) => {
+                      const comp = event.competitions[0];
+                      const home = comp.competitors.find(c => c.homeAway === 'home') ?? comp.competitors[0];
+                      const away = comp.competitors.find(c => c.homeAway === 'away') ?? comp.competitors[1];
+                      const isSelected = selectedESPNId === event.id;
+
+                      return (
+                        <button
+                          key={event.id}
+                          type="button"
+                          onClick={() => handleSelectESPN(event)}
+                          className={`text-left p-4 rounded-xl border transition-all ${
+                            isSelected
+                              ? 'border-green-500 bg-green-500/10 ring-1 ring-green-500/40'
+                              : 'border-gray-700 bg-gray-800/50 hover:border-gray-500 hover:bg-gray-800'
+                          }`}
+                        >
+                          {/* Time */}
+                          <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-3">
+                            <Calendar size={11} />
+                            {format(new Date(event.date), 'HH:mm')}
+                            {isSelected && (
+                              <span className="ml-auto text-green-400 font-semibold">Selected ✓</span>
+                            )}
+                          </div>
+
+                          {/* Teams */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              {home.team.logo ? (
+                                <img src={home.team.logo} alt="" className="w-7 h-7 object-contain flex-shrink-0" />
+                              ) : (
+                                <span className="text-2xl flex-shrink-0">{flagFor(home.team.displayName)}</span>
+                              )}
+                              <span className="text-sm font-semibold text-white truncate">
+                                {home.team.displayName}
+                              </span>
+                            </div>
+
+                            <span className="text-xs font-black text-gray-500 flex-shrink-0">VS</span>
+
+                            <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                              <span className="text-sm font-semibold text-white truncate text-right">
+                                {away.team.displayName}
+                              </span>
+                              {away.team.logo ? (
+                                <img src={away.team.logo} alt="" className="w-7 h-7 object-contain flex-shrink-0" />
+                              ) : (
+                                <span className="text-2xl flex-shrink-0">{flagFor(away.team.displayName)}</span>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
-
-                  {/* Teams */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {home.team.logo ? (
-                        <img src={home.team.logo} alt="" className="w-7 h-7 object-contain flex-shrink-0" />
-                      ) : (
-                        <span className="text-2xl flex-shrink-0">{flagFor(home.team.displayName)}</span>
-                      )}
-                      <span className="text-sm font-semibold text-white truncate">
-                        {home.team.displayName}
-                      </span>
-                    </div>
-
-                    <span className="text-xs font-black text-gray-500 flex-shrink-0">VS</span>
-
-                    <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-                      <span className="text-sm font-semibold text-white truncate text-right">
-                        {away.team.displayName}
-                      </span>
-                      {away.team.logo ? (
-                        <img src={away.team.logo} alt="" className="w-7 h-7 object-contain flex-shrink-0" />
-                      ) : (
-                        <span className="text-2xl flex-shrink-0">{flagFor(away.team.displayName)}</span>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── Manual Form ──────────────────────────────────────── */}

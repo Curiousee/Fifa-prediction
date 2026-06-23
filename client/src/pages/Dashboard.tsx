@@ -85,7 +85,12 @@ const Dashboard: React.FC = () => {
   }
 
   const openMatches = matches.filter((m) => m.status === 'open');
-  const upcomingMatches = matches.filter((m) => m.status === 'upcoming').slice(0, 3);
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const upcomingMatches = matches.filter(
+    (m) =>
+      m.status !== 'completed' &&
+      format(new Date(m.matchDate), 'yyyy-MM-dd') === todayStr
+  );
   const completedMatches = matches.filter((m) => m.status === 'completed');
   const correctPredictions = myPredictions.filter((p) => p.isCorrect === true).length;
 
