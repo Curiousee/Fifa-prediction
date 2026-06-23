@@ -82,7 +82,7 @@ const Leaderboard: React.FC = () => {
     return months[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + hh + ':' + mm + ':' + ss;
   };
 
-  const myEntry = user ? entries.find((e) => e.email === user.email) : null;
+  const myEntry = user ? entries.find((e) => e.id === user.id) : null;
 
   return (
     <div className="page-container max-w-3xl">
@@ -164,7 +164,7 @@ const Leaderboard: React.FC = () => {
                   {[1, 0, 2].map((idx) => {
                     const entry = entries[idx];
                     if (!entry) return null;
-                    const isMe = entry.email === user?.email;
+                    const isMe = entry.id === user?.id;
                     const podiumHeight = idx === 0 ? 'h-28' : idx === 1 ? 'h-36' : 'h-24';
                     return (
                       <div
@@ -201,7 +201,7 @@ const Leaderboard: React.FC = () => {
                 </div>
                 <div className="divide-y divide-gray-800/60">
                   {entries.map((entry) => {
-                    const isMe = entry.email === user?.email;
+                    const isMe = entry.id === user?.id;
                     return (
                       <div
                         key={entry.id}
@@ -299,7 +299,7 @@ const Leaderboard: React.FC = () => {
                   </div>
                   <div className="divide-y divide-gray-800/60">
                     {dailyEntries.map((entry) => {
-                      const isMe = entry.email === user?.email;
+                      const isMe = entry.id === user?.id;
                       return (
                         <div
                           key={entry.id}

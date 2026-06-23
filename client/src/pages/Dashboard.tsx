@@ -26,7 +26,7 @@ const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [predictingId, setPredictingId] = useState<string | null>(null);
 
-  const myRank = leaderboard.find((e) => e.email === user?.email)?.rank;
+  const myRank = leaderboard.find((e) => e.id === user?.id)?.rank;
 
   const loadData = useCallback(async () => {
     try {
@@ -235,7 +235,7 @@ const Dashboard: React.FC = () => {
 
             <div className="space-y-2">
               {leaderboard.slice(0, 5).map((entry) => {
-                const isMe = entry.email === user?.email;
+                const isMe = entry.id === user?.id;
                 return (
                   <div
                     key={entry.id}

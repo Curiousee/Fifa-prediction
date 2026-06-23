@@ -6,12 +6,12 @@ import { useAuth } from '../../context/useAuth';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { format } from 'date-fns';
 import type { User } from '../../types';
-import { SUPER_ADMIN_EMAIL } from '../../types';
+
 
 const ManageUsers: React.FC = () => {
   const { user: me } = useAuth();
-  const isSuperAdmin = me?.email === SUPER_ADMIN_EMAIL;
-  const isOriginalRoshan = me?.email === SUPER_ADMIN_EMAIL;
+  const isSuperAdmin = me?.isSuperAdmin === true;
+  const isOriginalRoshan = me?.isSuperAdmin === true;
   const [users, setUsers] = useState<(User & { _id: string; joinedDate: string; role: string; canChangeScores: boolean; isSuperAdmin: boolean })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
