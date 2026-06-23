@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { body, validationResult } from 'express-validator';
 import Match from '../models/Match';
 import Prediction from '../models/Prediction';
 import User from '../models/User';
@@ -62,10 +63,27 @@ export const getMatchById = async (
   }
 };
 
+export const createMatchValidation = [
+  body('matchNumber').isInt({ min: 1 }).withMessage('matchNumber must be a positive integer'),
+  body('matchDate').isISO8601().withMessage('matchDate must be a valid date'),
+  body('teamA.name').trim().notEmpty().withMessage('teamA.name is required').isLength({ max: 100 }),
+  body('teamA.flag').trim().notEmpty().withMessage('teamA.flag is required').isLength({ max: 10 }),
+  body('teamB.name').trim().notEmpty().withMessage('teamB.name is required').isLength({ max: 100 }),
+  body('teamB.flag').trim().notEmpty().withMessage('teamB.flag is required').isLength({ max: 10 }),
+  body('predictionStart').isISO8601().withMessage('predictionStart must be a valid date'),
+  body('predictionEnd').isISO8601().withMessage('predictionEnd must be a valid date'),
+];
+
 export const createMatch = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    res.status(400).json({ errors: errors.array() });
+    return;
+  }
+
   try {
     const { matchNumber, matchDate, teamA, teamB, predictionStart, predictionEnd } =
       req.body as {
@@ -103,14 +121,26 @@ export const createMatch = async (
   }
 };
 
+const ALLOWED_MATCH_UPDATE_FIELDS = [
+  'matchNumber', 'matchDate', 'teamA', 'teamB',
+  'predictionStart', 'predictionEnd', 'status',
+] as const;
+
 export const updateMatch = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
+    const updates: Record<string, unknown> = {};
+    for (const key of ALLOWED_MATCH_UPDATE_FIELDS) {
+      if (key in req.body) {
+        updates[key] = req.body[key];
+      }
+    }
+
     const match = await Match.findByIdAndUpdate(
       req.params['id'],
-      req.body,
+      updates,
       { new: true, runValidators: true }
     );
     if (!match) {
