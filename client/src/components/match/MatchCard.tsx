@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Clock, Trophy, ChevronRight, CheckCircle2, Lock } from 'lucide-react';
@@ -16,7 +16,7 @@ interface MatchCardProps {
 
 const statusConfig = {
   upcoming: { label: 'Upcoming', className: 'badge-upcoming' },
-  open: { label: 'ðŸŸ¢ Open', className: 'badge-open' },
+  open: { label: '\u{1F7E2} Open', className: 'badge-open' },
   closed: { label: 'Closed', className: 'badge-closed' },
   completed: { label: 'Completed', className: 'badge-completed' },
 };
