@@ -12,6 +12,8 @@ import leaderboardRoutes from './routes/leaderboard.routes';
 import adminRoutes from './routes/admin.routes';
 import commentRoutes from './routes/comment.routes';
 import { startAutoResultService } from './services/autoResult';
+import { startESPNSyncService } from './services/espnMatchSync';
+import { seedMatches } from './seeds';
 
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
 dotenv.config({ path: envFile });
@@ -30,6 +32,9 @@ process.on('uncaughtException', (error) => {
 
 const startServer = async () => {
   await connectDB();
+
+  // Seed World Cup 2026 matches
+  await seedMatches();
 
   app.use(helmet());
 
@@ -99,6 +104,7 @@ const startServer = async () => {
     console.log(`\n🚀 Server running on http://localhost:${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}\n`);
     startAutoResultService();
+    startESPNSyncService();
   });
 };
 
