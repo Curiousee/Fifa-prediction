@@ -1,9 +1,9 @@
 import { Response } from 'express';
 import User from '../models/User';
-import Match from '../models/Match';
 import Prediction from '../models/Prediction';
 import PointHistory from '../models/PointHistory';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { fetchDashboardStats } from '../utils/dashboard-stats';
 
 export const getDashboardStats = async (
   _req: AuthRequest,

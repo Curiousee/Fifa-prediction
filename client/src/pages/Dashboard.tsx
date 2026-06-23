@@ -13,18 +13,19 @@ import {
 import { useAuth } from '../context/useAuth';
 import { matchAPI, predictionAPI, leaderboardAPI } from '../services/api';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import StatCardGrid from '../components/ui/StatCard';
 import MatchCard from '../components/match/MatchCard';
 import FifaResults from '../components/FifaResults';
-import type { Match, Prediction, LeaderboardEntry, PredictionChoice } from '../types';
+import { usePredictions } from '../hooks/usePredictions';
+import type { Match, Prediction, LeaderboardEntry } from '../types';
 import toast from 'react-hot-toast';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
-  const [myPredictions, setMyPredictions] = useState<Prediction[]>([]);
+  const { myPredictions, setMyPredictions, predictingId, handlePredict, getPredictionForMatch } = usePredictions();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [predictingId, setPredictingId] = useState<string | null>(null);
 
   const myRank = leaderboard.find((e) => e.id === user?.id)?.rank;
 
@@ -48,33 +49,6 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  const handlePredict = async (matchId: string, choice: PredictionChoice) => {
-    setPredictingId(matchId);
-    try {
-      await predictionAPI.submit({ matchId, choice });
-      toast.success('Prediction submitted! ⚽');
-      // Refresh predictions
-      const res = await predictionAPI.getMy();
-      setMyPredictions(res.data as Prediction[]);
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } }).response?.data
-          ?.message || 'Failed to submit prediction';
-      toast.error(msg);
-    } finally {
-      setPredictingId(null);
-    }
-  };
-
-  const getPredictionForMatch = (matchId: string): PredictionChoice | null => {
-    const pred = myPredictions.find(
-      (p) =>
-        (typeof p.matchId === 'string' ? p.matchId : (p.matchId as Match)._id) ===
-        matchId
-    );
-    return pred ? pred.choice : null;
-  };
 
   if (isLoading) {
     return (
@@ -107,8 +81,8 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {[
+      <StatCardGrid
+        items={[
           {
             label: 'Total Points',
             value: user?.points?.toLocaleString() ?? '0',
@@ -141,19 +115,8 @@ const Dashboard: React.FC = () => {
             bg: 'bg-purple-500/10',
             border: 'border-purple-500/20',
           },
-        ].map(({ label, value, icon: Icon, color, bg, border }) => (
-          <div
-            key={label}
-            className={`card border ${border} animate-fade-in`}
-          >
-            <div className={`w-10 h-10 ${bg} rounded-xl flex items-center justify-center mb-3`}>
-              <Icon size={20} className={color} />
-            </div>
-            <div className="text-2xl font-black text-white">{value}</div>
-            <div className="text-gray-400 text-sm mt-0.5">{label}</div>
-          </div>
-        ))}
-      </div>
+        ]}
+      />
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Left column — matches */}

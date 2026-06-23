@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { formatUserResponse } from '../utils/format-user';
 
 const generateToken = (id: string, role: string): string => {
   const secret = process.env.JWT_SECRET;

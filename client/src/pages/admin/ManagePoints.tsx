@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Trophy, Plus, Minus, Clock, Search } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Trophy, Plus, Minus, Clock, Search } from 'lucide-react';
 import { adminAPI } from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import BackLink from '../../components/ui/BackLink';
+import SearchInput from '../../components/ui/SearchInput';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import type { User, PointHistory } from '../../types';
@@ -103,13 +105,7 @@ const ManagePoints: React.FC = () => {
 
   return (
     <div className="page-container">
-      <Link
-        to="/admin"
-        className="inline-flex items-center gap-2 text-gray-400 hover:text-white text-sm mb-8 transition-colors"
-      >
-        <ArrowLeft size={16} />
-        Back to Admin
-      </Link>
+      <BackLink to="/admin" label="Back to Admin" />
 
       <div className="mb-8">
         <h1 className="section-title flex items-center gap-2">
@@ -130,14 +126,12 @@ const ManagePoints: React.FC = () => {
               Select User
             </h2>
 
-            <div className="relative mb-3">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search by name or email..."
+            <div className="mb-3">
+              <SearchInput
                 value={userSearch}
-                onChange={(e) => setUserSearch(e.target.value)}
-                className="input-field pl-9 text-sm py-2.5"
+                onChange={setUserSearch}
+                placeholder="Search by name or email..."
+                className="max-w-full"
               />
             </div>
 

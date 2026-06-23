@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import User from '../models/User';
 import Match from '../models/Match';
 import Prediction from '../models/Prediction';
+import { fetchDashboardStats } from '../utils/dashboard-stats';
 
 export const getDashboardStats = async (
   _req: Request,
