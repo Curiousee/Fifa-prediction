@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { formatUserResponse } from '../utils/format-user';
 
 const generateToken = (id: string, role: string): string => {
   const secret = process.env.JWT_SECRET;
@@ -54,17 +55,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const user = await User.create({ name, email, password });
     const token = generateToken(user._id.toString(), user.role);
 
-    res.status(201).json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        points: user.points,
-        joinedDate: user.joinedDate,
-      },
-    });
+    res.status(201).json({ token, user: formatUserResponse(user) });
   } catch {
     res.status(500).json({ message: 'Server error during registration' });
   }
@@ -94,17 +85,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     const token = generateToken(user._id.toString(), user.role);
 
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        points: user.points,
-        joinedDate: user.joinedDate,
-      },
-    });
+    res.json({ token, user: formatUserResponse(user) });
   } catch {
     res.status(500).json({ message: 'Server error during login' });
   }
@@ -117,14 +98,7 @@ export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
       res.status(404).json({ message: 'User not found' });
       return;
     }
-    res.json({
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      points: user.points,
-      joinedDate: user.joinedDate,
-    });
+    res.json(formatUserResponse(user));
   } catch {
     res.status(500).json({ message: 'Server error' });
   }

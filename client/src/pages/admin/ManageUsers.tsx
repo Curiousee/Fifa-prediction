@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, ArrowLeft, Trophy, Calendar, Search, Trash2, ShieldCheck, ShieldOff, ClipboardEdit, Star } from 'lucide-react';
+import { Users, Trophy, Calendar, Trash2, ShieldCheck, ShieldOff, ClipboardEdit, Star } from 'lucide-react';
 import { adminAPI } from '../../services/api';
 import { useAuth } from '../../context/useAuth';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import BackLink from '../../components/ui/BackLink';
+import SearchInput from '../../components/ui/SearchInput';
 import { format } from 'date-fns';
 import type { User } from '../../types';
 import { SUPER_ADMIN_EMAIL } from '../../types';
@@ -100,13 +102,7 @@ const ManageUsers: React.FC = () => {
 
   return (
     <div className="page-container">
-      <Link
-        to="/admin"
-        className="inline-flex items-center gap-2 text-gray-400 hover:text-white text-sm mb-8 transition-colors"
-      >
-        <ArrowLeft size={16} />
-        Back to Admin
-      </Link>
+      <BackLink to="/admin" label="Back to Admin" />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
@@ -119,16 +115,7 @@ const ManageUsers: React.FC = () => {
           </p>
         </div>
 
-        <div className="relative max-w-xs w-full">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search by name or email..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="input-field pl-9 text-sm py-2.5"
-          />
-        </div>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search by name or email..." />
       </div>
 
       {isLoading ? (

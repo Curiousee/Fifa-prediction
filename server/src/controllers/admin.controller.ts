@@ -1,24 +1,17 @@
 import { Response } from 'express';
 import User from '../models/User';
-import Match from '../models/Match';
 import Prediction from '../models/Prediction';
 import PointHistory from '../models/PointHistory';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { fetchDashboardStats } from '../utils/dashboard-stats';
 
 export const getDashboardStats = async (
   _req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const [totalUsers, totalMatches, totalPredictions, completedMatches] =
-      await Promise.all([
-        User.countDocuments({ role: 'user' }),
-        Match.countDocuments(),
-        Prediction.countDocuments(),
-        Match.countDocuments({ status: 'completed' }),
-      ]);
-
-    res.json({ totalUsers, totalMatches, totalPredictions, completedMatches });
+    const stats = await fetchDashboardStats();
+    res.json(stats);
   } catch {
     res.status(500).json({ message: 'Error fetching stats' });
   }

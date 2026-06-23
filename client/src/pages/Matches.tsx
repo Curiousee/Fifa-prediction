@@ -1,18 +1,19 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Swords, Search } from 'lucide-react';
+import { Swords } from 'lucide-react';
 import { matchAPI, predictionAPI } from '../services/api';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import SearchInput from '../components/ui/SearchInput';
 import MatchCard from '../components/match/MatchCard';
-import type { Match, Prediction, PredictionChoice } from '../types';
+import { usePredictions } from '../hooks/usePredictions';
+import type { Match, Prediction } from '../types';
 import toast from 'react-hot-toast';
 
 type FilterStatus = 'all' | 'open' | 'upcoming' | 'closed' | 'completed';
 
 const Matches: React.FC = () => {
   const [matches, setMatches] = useState<Match[]>([]);
-  const [myPredictions, setMyPredictions] = useState<Prediction[]>([]);
+  const { setMyPredictions, predictingId, handlePredict, getPredictionForMatch } = usePredictions();
   const [isLoading, setIsLoading] = useState(true);
-  const [predictingId, setPredictingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [search, setSearch] = useState('');
 
@@ -34,32 +35,6 @@ const Matches: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  const handlePredict = async (matchId: string, choice: PredictionChoice) => {
-    setPredictingId(matchId);
-    try {
-      await predictionAPI.submit({ matchId, choice });
-      toast.success('Prediction submitted! ⚽');
-      const res = await predictionAPI.getMy();
-      setMyPredictions(res.data as Prediction[]);
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } }).response?.data
-          ?.message || 'Failed to submit prediction';
-      toast.error(msg);
-    } finally {
-      setPredictingId(null);
-    }
-  };
-
-  const getPredictionForMatch = (matchId: string): PredictionChoice | null => {
-    const pred = myPredictions.find(
-      (p) =>
-        (typeof p.matchId === 'string' ? p.matchId : (p.matchId as Match)._id) ===
-        matchId
-    );
-    return pred ? pred.choice : null;
-  };
 
   const filtered = matches
     .filter((m) => filter === 'all' || m.status === filter)
@@ -103,19 +78,7 @@ const Matches: React.FC = () => {
         </div>
 
         {/* Search */}
-        <div className="relative max-w-xs w-full">
-          <Search
-            size={15}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
-          />
-          <input
-            type="text"
-            placeholder="Search teams..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="input-field pl-9 text-sm py-2.5"
-          />
-        </div>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search teams..." />
       </div>
 
       {/* Filters */}

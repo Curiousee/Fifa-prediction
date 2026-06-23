@@ -5,9 +5,8 @@ import { format } from 'date-fns';
 import { leaderboardAPI } from '../services/api';
 import { useAuth } from '../context/useAuth';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import RankBadge, { MEDALS } from '../components/ui/RankBadge';
 import type { LeaderboardEntry, DailyLeaderboardEntry } from '../types';
-
-const MEDALS = ['🥇', '🥈', '🥉'];
 type Tab = 'overall' | 'daily';
 
 const Leaderboard: React.FC = () => {
@@ -210,14 +209,7 @@ const Leaderboard: React.FC = () => {
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0 ${
-                            entry.rank === 1 ? 'bg-yellow-500/20 text-yellow-400'
-                            : entry.rank === 2 ? 'bg-gray-400/20 text-gray-300'
-                            : entry.rank === 3 ? 'bg-orange-700/20 text-orange-400'
-                            : 'bg-gray-800 text-gray-400'
-                          }`}>
-                            {entry.rank <= 3 ? MEDALS[entry.rank - 1] : entry.rank}
-                          </div>
+                          <RankBadge rank={entry.rank} />
                           <div>
                             <div className="flex items-center gap-1.5">
                               <span className={`font-semibold text-sm ${isMe ? 'text-green-400' : 'text-white'}`}>

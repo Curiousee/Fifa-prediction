@@ -88,6 +88,13 @@ export interface AdminStats {
   completedMatches: number;
 }
 
+export interface Comment {
+  _id: string;
+  text: string;
+  userId: { _id: string; name: string } | null;
+  createdAt: string;
+}
+
 export interface AuthContextType {
   user: User | null;
   token: string | null;

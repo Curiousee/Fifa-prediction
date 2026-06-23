@@ -14,6 +14,8 @@ import { adminAPI, matchAPI } from '../../services/api';
 import { useAuth } from '../../context/useAuth';
 import { SUPER_ADMIN_EMAIL } from '../../types';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import StatCardGrid from '../../components/ui/StatCard';
+import { getMatchResultLabel } from '../../utils/match-result';
 import type { AdminStats, Match } from '../../types';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -89,22 +91,14 @@ const AdminDashboard: React.FC = () => {
 
       {/* Stats */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {[
+        <StatCardGrid
+          items={[
             { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10' },
             { label: 'Total Matches', value: stats.totalMatches, icon: Swords, color: 'text-green-400', bg: 'bg-green-500/10' },
             { label: 'Predictions Made', value: stats.totalPredictions, icon: Target, color: 'text-purple-400', bg: 'bg-purple-500/10' },
             { label: 'Completed Matches', value: stats.completedMatches, icon: CheckCircle2, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
-          ].map(({ label, value, icon: Icon, color, bg }) => (
-            <div key={label} className="card">
-              <div className={`w-10 h-10 ${bg} rounded-xl flex items-center justify-center mb-3`}>
-                <Icon size={20} className={color} />
-              </div>
-              <div className="text-3xl font-black text-white">{value.toLocaleString()}</div>
-              <div className="text-gray-400 text-sm mt-0.5">{label}</div>
-            </div>
-          ))}
-        </div>
+          ]}
+        />
       )}
 
       {/* Quick Nav */}
@@ -260,13 +254,7 @@ const AdminDashboard: React.FC = () => {
                     <span className={`badge-${match.status}`}>{match.status}</span>
                   </td>
                   <td className="py-3 text-gray-300 text-xs">
-                    {match.result
-                      ? match.result === 'teamA'
-                        ? `${match.teamA.flag} Win`
-                        : match.result === 'teamB'
-                        ? `${match.teamB.flag} Win`
-                        : '🤝 Draw'
-                      : '—'}
+                    {getMatchResultLabel(match) ?? '—'}
                   </td>
                 </tr>
               ))}

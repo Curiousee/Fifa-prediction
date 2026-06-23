@@ -3,12 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Trophy, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 import toast from 'react-hot-toast';
-import type { AxiosError } from 'axios';
-
-interface ApiError {
-  message?: string;
-  errors?: { msg: string }[];
-}
+import { getApiErrorMessage } from '../utils/api-error';
 
 const Login: React.FC = () => {
   const { login, user } = useAuth();
@@ -31,12 +26,7 @@ const Login: React.FC = () => {
       const authUser = user as { role?: string } | null;
       navigate(authUser?.role === 'admin' ? '/admin' : '/dashboard');
     } catch (err) {
-      const error = err as AxiosError<ApiError>;
-      const message =
-        error.response?.data?.message ||
-        error.response?.data?.errors?.[0]?.msg ||
-        'Login failed. Please try again.';
-      toast.error(message);
+      toast.error(getApiErrorMessage(err, 'Login failed. Please try again.'));
     } finally {
       setIsLoading(false);
     }

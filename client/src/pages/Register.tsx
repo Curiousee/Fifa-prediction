@@ -3,12 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Trophy, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 import toast from 'react-hot-toast';
-import type { AxiosError } from 'axios';
-
-interface ApiError {
-  message?: string;
-  errors?: { msg: string }[];
-}
+import { getApiErrorMessage } from '../utils/api-error';
 
 const Register: React.FC = () => {
   const { register, user } = useAuth();
@@ -40,12 +35,7 @@ const Register: React.FC = () => {
       await register(form.name.trim(), form.email, form.password);
       navigate('/dashboard');
     } catch (err) {
-      const error = err as AxiosError<ApiError>;
-      const message =
-        error.response?.data?.message ||
-        error.response?.data?.errors?.[0]?.msg ||
-        'Registration failed. Please try again.';
-      toast.error(message);
+      toast.error(getApiErrorMessage(err, 'Registration failed. Please try again.'));
     } finally {
       setIsLoading(false);
     }
