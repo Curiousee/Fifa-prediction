@@ -179,8 +179,8 @@ const MatchCard: React.FC<MatchCardProps> = ({
         />
       )}
 
-      {/* Poll Link */}
-      {showPollLink && (match.status === 'closed' || match.status === 'completed') && (
+      {/* Poll Link — visible after user predicts or when match is closed/completed */}
+      {showPollLink && (match.status === 'closed' || match.status === 'completed' || userChoice) && (
         <Link
           to={`/matches/${match._id}/poll`}
           className="mt-3 flex items-center justify-center gap-1.5 text-green-400 hover:text-green-300 text-sm font-medium transition-colors"

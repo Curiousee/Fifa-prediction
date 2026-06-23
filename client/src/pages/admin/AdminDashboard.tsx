@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { adminAPI, matchAPI } from '../../services/api';
 import { useAuth } from '../../context/useAuth';
-import { SUPER_ADMIN_EMAIL } from '../../types';
+
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import type { AdminStats, Match } from '../../types';
 import toast from 'react-hot-toast';
@@ -23,7 +23,7 @@ import { format } from 'date-fns';
 
 const AdminDashboard: React.FC = () => {
   const { user: me } = useAuth();
-  const canDeclareResults = me?.email === SUPER_ADMIN_EMAIL || me?.canChangeScores;
+  const canDeclareResults = me?.isSuperAdmin || me?.canChangeScores;
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
   const [isLoading, setIsLoading] = useState(true);

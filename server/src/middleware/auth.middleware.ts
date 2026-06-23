@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
 
-export const SUPER_ADMIN_EMAIL = 'mahamood.roshan@tcs.com';
+export const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || '';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -18,6 +18,37 @@ interface JwtPayload {
   id: string;
   role: string;
 }
+
+export const optionalAuth = async (
+  req: AuthRequest,
+  _res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    next();
+    return;
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) { next(); return; }
+    const decoded = jwt.verify(token, secret) as JwtPayload;
+    const user = await User.findById(decoded.id).select('-password');
+    if (user) {
+      req.user = {
+        id: user._id.toString(),
+        role: user.role,
+        email: user.email,
+        canChangeScores: user.canChangeScores,
+        isSuperAdmin: user.email === SUPER_ADMIN_EMAIL || user.isSuperAdmin === true,
+      };
+    }
+  } catch {
+    // Token invalid — continue as unauthenticated
+  }
+  next();
+};
 
 export const authenticate = async (
   req: AuthRequest,
