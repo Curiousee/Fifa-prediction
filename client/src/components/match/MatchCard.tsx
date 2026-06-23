@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Clock, Trophy, ChevronRight, CheckCircle2, Lock } from 'lucide-react';
@@ -16,7 +16,7 @@ interface MatchCardProps {
 
 const statusConfig = {
   upcoming: { label: 'Upcoming', className: 'badge-upcoming' },
-  open: { label: 'ðŸŸ¢ Open', className: 'badge-open' },
+  open: { label: '\u{1F7E2} Open', className: 'badge-open' },
   closed: { label: 'Closed', className: 'badge-closed' },
   completed: { label: 'Completed', className: 'badge-completed' },
 };
@@ -179,8 +179,8 @@ const MatchCard: React.FC<MatchCardProps> = ({
         />
       )}
 
-      {/* Poll Link */}
-      {showPollLink && (match.status === 'closed' || match.status === 'completed') && (
+      {/* Poll Link — visible after user predicts or when match is closed/completed */}
+      {showPollLink && (match.status === 'closed' || match.status === 'completed' || userChoice) && (
         <Link
           to={`/matches/${match._id}/poll`}
           className="mt-3 flex items-center justify-center gap-1.5 text-green-400 hover:text-green-300 text-sm font-medium transition-colors"
