@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
 
-export const SUPER_ADMIN_EMAIL = 'mahamood.roshan@tcs.com';
+export const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || '';
 
 export interface AuthRequest extends Request {
   user?: {

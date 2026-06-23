@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
@@ -29,6 +30,8 @@ process.on('uncaughtException', (error) => {
 const startServer = async () => {
   await connectDB();
 
+  app.use(helmet());
+
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 200,
@@ -38,11 +41,11 @@ const startServer = async () => {
   });
 
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:5174';
+  const allowedOrigins = [clientUrl, 'http://localhost:5173', 'http://localhost:5174'];
 
   app.use(cors({
     origin: (origin, callback) => {
-      const allowed = [clientUrl, 'http://localhost:5173', 'http://localhost:5174'];
-      if (!origin || allowed.includes(origin) || origin.endsWith('.onrender.com')) {
+      if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));

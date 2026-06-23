@@ -3,7 +3,9 @@ import {
   getAllMatches,
   getMatchById,
   createMatch,
+  createMatchValidation,
   updateMatch,
+  deleteMatch,
   declareResult,
 } from '../controllers/match.controller';
 import { authenticate } from '../middleware/auth.middleware';
@@ -13,8 +15,9 @@ const router = Router();
 
 router.get('/', getAllMatches);
 router.get('/:id', getMatchById);
-router.post('/', authenticate, requireAdmin, createMatch);
+router.post('/', authenticate, requireAdmin, createMatchValidation, createMatch);
 router.put('/:id', authenticate, requireAdmin, updateMatch);
+router.delete('/:id', authenticate, requireAdmin, deleteMatch);
 router.post('/:id/result', authenticate, requireAdmin, declareResult);
 
 export default router;
