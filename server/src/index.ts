@@ -42,7 +42,12 @@ const startServer = async () => {
   });
 
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:5174';
-  const allowedOrigins = [clientUrl, 'http://localhost:5173', 'http://localhost:5174'];
+  const allowedOrigins = [
+    clientUrl,
+    'http://localhost:5173',
+    'http://localhost:5174',
+    process.env.PRODUCTION_URL || 'https://fifa-prediction-2.onrender.com',
+  ];
 
   app.use(cors({
     origin: (origin, callback) => {
