@@ -11,6 +11,7 @@ import predictionRoutes from './routes/prediction.routes';
 import leaderboardRoutes from './routes/leaderboard.routes';
 import adminRoutes from './routes/admin.routes';
 import commentRoutes from './routes/comment.routes';
+import { startAutoResultService } from './services/autoResult';
 
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
 dotenv.config({ path: envFile });
@@ -73,6 +74,7 @@ app.get('*', (_req, res) => {
 app.listen(PORT, () => {
   console.log(`\n🚀 Server running on http://localhost:${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}\n`);
+  startAutoResultService();
 });
 
 export default app;
