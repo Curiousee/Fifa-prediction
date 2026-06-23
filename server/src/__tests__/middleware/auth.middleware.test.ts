@@ -1,3 +1,6 @@
+// Set env before module import so SUPER_ADMIN_EMAIL picks it up
+process.env.SUPER_ADMIN_EMAIL = 'superadmin@test.com';
+
 import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { authenticate, AuthRequest, SUPER_ADMIN_EMAIL } from '../../middleware/auth.middleware';
@@ -115,7 +118,7 @@ describe('authenticate middleware', () => {
     const fakeUser = {
       _id: { toString: () => 'admin1' },
       role: 'admin',
-      email: SUPER_ADMIN_EMAIL,
+      email: 'superadmin@test.com',
       canChangeScores: true,
       isSuperAdmin: false,
     };
@@ -123,6 +126,7 @@ describe('authenticate middleware', () => {
 
     await authenticate(req, res, mockNext);
 
+    expect(SUPER_ADMIN_EMAIL).toBe('superadmin@test.com');
     expect(req.user?.isSuperAdmin).toBe(true);
   });
 

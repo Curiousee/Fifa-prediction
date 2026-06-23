@@ -28,7 +28,14 @@ const mockRes = (): Response => {
 };
 
 describe('admin.controller', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.SUPER_ADMIN_EMAIL = 'superadmin@test.com';
+  });
+
+  afterEach(() => {
+    delete process.env.SUPER_ADMIN_EMAIL;
+  });
 
   describe('getDashboardStats', () => {
     it('returns aggregated stats', async () => {
@@ -294,7 +301,7 @@ describe('admin.controller', () => {
   });
 
   describe('updateSuperAdminAccess', () => {
-    it('returns 403 when requester is not the roshan email', async () => {
+    it('returns 403 when requester is not the super admin email', async () => {
       const req = {
         params: { userId: 'u1' },
         body: { isSuperAdmin: true },
@@ -311,7 +318,7 @@ describe('admin.controller', () => {
       const req = {
         params: { userId: 'u1' },
         body: { isSuperAdmin: 'yes' },
-        user: { id: 'a1', email: 'mahamood.roshan@tcs.com' },
+        user: { id: 'a1', email: 'superadmin@test.com' },
       } as unknown as AuthRequest;
       const res = mockRes();
 
@@ -324,7 +331,7 @@ describe('admin.controller', () => {
       const req = {
         params: { userId: 'a1' },
         body: { isSuperAdmin: false },
-        user: { id: 'a1', email: 'mahamood.roshan@tcs.com' },
+        user: { id: 'a1', email: 'superadmin@test.com' },
       } as unknown as AuthRequest;
       const res = mockRes();
 
@@ -340,7 +347,7 @@ describe('admin.controller', () => {
       const req = {
         params: { userId: 'u1' },
         body: { isSuperAdmin: true },
-        user: { id: 'a1', email: 'mahamood.roshan@tcs.com' },
+        user: { id: 'a1', email: 'superadmin@test.com' },
       } as unknown as AuthRequest;
       const res = mockRes();
 
@@ -363,7 +370,7 @@ describe('admin.controller', () => {
       const req = {
         params: { userId: 'u1' },
         body: { isSuperAdmin: false },
-        user: { id: 'a1', email: 'mahamood.roshan@tcs.com' },
+        user: { id: 'a1', email: 'superadmin@test.com' },
       } as unknown as AuthRequest;
       const res = mockRes();
 
