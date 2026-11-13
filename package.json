@@ -1,7 +1,7 @@
 {
   "name": "fifa-prediction",
   "version": "1.0.0",
-  "description": "FIFA prediction application",
+  "description": "Football prediction community app",
   "scripts": {
     "install-all": "npm install && npm install --prefix client && npm install --prefix server",
     "build": "npm run install-all && cd client && npm run build && cd ../server && npm run build",
@@ -10,7 +10,7 @@
     "client": "npm run dev --prefix client",
     "server": "npm run dev --prefix server"
   },
-  "keywords": ["fifa", "prediction", "sports"],
+  "keywords": ["football", "prediction", "sports", "community"],
   "author": "",
   "license": "ISC",
   "devDependencies": {

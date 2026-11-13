@@ -1,7 +1,7 @@
 {
   "name": "fifa-prediction-server",
   "version": "1.0.0",
-  "description": "FIFA World Cup Match Prediction Contest API",
+  "description": "Football prediction community API",
   "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon --exec ts-node src/index.ts",
