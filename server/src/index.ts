@@ -11,9 +11,6 @@ import predictionRoutes from './routes/prediction.routes';
 import leaderboardRoutes from './routes/leaderboard.routes';
 import adminRoutes from './routes/admin.routes';
 import commentRoutes from './routes/comment.routes';
-import { startAutoResultService } from './services/autoResult';
-import { startESPNSyncService } from './services/espnMatchSync';
-import { seedMatches } from './seeds';
 
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
 dotenv.config({ path: envFile });
@@ -32,9 +29,6 @@ process.on('uncaughtException', (error) => {
 
 const startServer = async () => {
   await connectDB();
-
-  // Seed World Cup 2026 matches
-  await seedMatches();
 
   app.use(helmet());
 
@@ -80,31 +74,24 @@ const startServer = async () => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  // Serve static files from the client build directory in production
   const clientDistPath = path.join(__dirname, '../../client/dist');
   app.use(express.static(clientDistPath));
 
-  // SPA fallback: serve index.html for all non-API routes
   app.get('*', (_req, res) => {
     const indexPath = path.join(clientDistPath, 'index.html');
     res.sendFile(indexPath, (err) => {
-      if (err) {
-        res.status(404).json({ message: 'Frontend build not found' });
-      }
+      if (err) res.status(404).json({ message: 'Frontend build not found' });
     });
   });
 
-  // Global error handler — catches errors passed via next(err) or thrown in middleware
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('Unhandled express error:', err);
     res.status(500).json({ message: 'Internal server error' });
   });
 
   app.listen(PORT, () => {
-    console.log(`\n🚀 Server running on http://localhost:${PORT}`);
+    console.log(`\n🚀 FootyPredict server running on http://localhost:${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}\n`);
-    startAutoResultService();
-    startESPNSyncService();
   });
 };
 
