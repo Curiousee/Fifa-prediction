@@ -7,6 +7,7 @@ export interface ITeam {
 
 export interface IMatch extends Document {
   matchNumber: number;
+  competition: string;
   matchDate: Date;
   teamA: ITeam;
   teamB: ITeam;
@@ -28,6 +29,13 @@ const TeamSchema = new Schema<ITeam>(
 const MatchSchema = new Schema<IMatch>(
   {
     matchNumber: { type: Number, required: true, unique: true },
+    competition: {
+      type: String,
+      required: true,
+      trim: true,
+      default: 'International',
+      maxlength: 80,
+    },
     matchDate: { type: Date, required: true },
     teamA: { type: TeamSchema, required: true },
     teamB: { type: TeamSchema, required: true },
@@ -48,7 +56,6 @@ const MatchSchema = new Schema<IMatch>(
   { timestamps: true }
 );
 
-// Auto-generate prediction options from team names
 MatchSchema.pre('save', function (next) {
   if (this.isModified('teamA') || this.isModified('teamB') || this.isNew) {
     this.options = [

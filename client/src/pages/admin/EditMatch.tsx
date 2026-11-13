@@ -1,14 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
-import { Save, ArrowLeft, Info } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Plus, ArrowLeft, Info, Zap, Calendar } from 'lucide-react';
+import { format } from 'date-fns';
 import { matchAPI } from '../../services/api';
 import toast from 'react-hot-toast';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { flagFor } from '../../utils/flagUtils';
-import type { Match } from '../../types';
+
+interface ESPNCompetitor {
+  team: { displayName: string; abbreviation: string; logo?: string };
+  homeAway: string;
+}
+
+interface ESPNEvent {
+  id: string;
+  date: string;
+  competitions: Array<{ competitors: ESPNCompetitor[]; venue?: { fullName: string } }>;
+  season?: { slug: string };
+}
 
 interface FormState {
   matchNumber: string;
+  competition: string;
   matchDate: string;
   teamAName: string;
   teamAFlag: string;
@@ -18,20 +30,33 @@ interface FormState {
   predictionEnd: string;
 }
 
+const defaultCompetitions = [
+  'Premier League',
+  'Champions League',
+  'La Liga',
+  'Serie A',
+  'Bundesliga',
+  'International',
+  'World Cup Qualifiers',
+  'Other',
+];
+
 const toLocalDatetime = (isoString: string): string => {
   const d = new Date(isoString);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-const EditMatch: React.FC = () => {
+const CreateMatch: React.FC = () => {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
   const [isLoading, setIsLoading] = useState(false);
-  const [isFetching, setIsFetching] = useState(true);
+  const [upcomingESPN, setUpcomingESPN] = useState<ESPNEvent[]>([]);
+  const [espnLoading, setEspnLoading] = useState(true);
+  const [selectedESPNId, setSelectedESPNId] = useState<string | null>(null);
 
   const [form, setForm] = useState<FormState>({
     matchNumber: '',
+    competition: 'Premier League',
     matchDate: '',
     teamAName: '',
     teamAFlag: '',
@@ -45,32 +70,60 @@ const EditMatch: React.FC = () => {
     setForm((f) => ({ ...f, [key]: value }));
 
   useEffect(() => {
-    const fetchMatch = async () => {
+    const fetchUpcoming = async () => {
       try {
-        const res = await matchAPI.getById(id!);
-        const match = res.data as Match;
-        setForm({
-          matchNumber: String(match.matchNumber),
-          matchDate: toLocalDatetime(match.matchDate),
-          teamAName: match.teamA.name,
-          teamAFlag: match.teamA.flag,
-          teamBName: match.teamB.name,
-          teamBFlag: match.teamB.flag,
-          predictionStart: toLocalDatetime(match.predictionStart),
-          predictionEnd: toLocalDatetime(match.predictionEnd),
-        });
+        const today = new Date();
+        const future = new Date(today);
+        future.setDate(future.getDate() + 14);
+        const fmt = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, '');
+        const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${fmt(today)}-${fmt(future)}&limit=40`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`ESPN API returned ${res.status}`);
+        const json = await res.json();
+        const events: ESPNEvent[] = (json.events || []).filter(
+          (e: ESPNEvent) => e.competitions?.[0]?.competitors?.length === 2
+        );
+        setUpcomingESPN(events);
       } catch {
-        toast.error('Failed to load match');
-        navigate('/admin');
+        toast.error('Could not load upcoming football fixtures from ESPN');
       } finally {
-        setIsFetching(false);
+        setEspnLoading(false);
       }
     };
-    fetchMatch();
-  }, [id, navigate]);
+    fetchUpcoming();
+  }, []);
+
+  const handleSelectESPN = (event: ESPNEvent) => {
+    setSelectedESPNId(event.id);
+    const comp = event.competitions[0];
+    const home = comp.competitors.find(c => c.homeAway === 'home') ?? comp.competitors[0];
+    const away = comp.competitors.find(c => c.homeAway === 'away') ?? comp.competitors[1];
+
+    const matchDateLocal = toLocalDatetime(event.date);
+    const kickoff = new Date(event.date);
+    const closesAt = new Date(kickoff.getTime() - 5 * 60 * 1000);
+    const opensAt = new Date();
+
+    setForm(f => ({
+      ...f,
+      competition: 'International',
+      teamAName: home.team.displayName,
+      teamAFlag: flagFor(home.team.displayName),
+      teamBName: away.team.displayName,
+      teamBFlag: flagFor(away.team.displayName),
+      matchDate: matchDateLocal,
+      predictionStart: toLocalDatetime(opensAt.toISOString()),
+      predictionEnd: toLocalDatetime(closesAt.toISOString()),
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!form.competition.trim()) {
+      toast.error('Competition is required');
+      return;
+    }
 
     if (new Date(form.predictionEnd) <= new Date(form.predictionStart)) {
       toast.error('Prediction end time must be after start time');
@@ -79,8 +132,9 @@ const EditMatch: React.FC = () => {
 
     setIsLoading(true);
     try {
-      await matchAPI.update(id!, {
+      await matchAPI.create({
         matchNumber: parseInt(form.matchNumber, 10),
+        competition: form.competition.trim(),
         matchDate: new Date(form.matchDate).toISOString(),
         teamA: { name: form.teamAName.trim(), flag: form.teamAFlag.trim() },
         teamB: { name: form.teamBName.trim(), flag: form.teamBFlag.trim() },
@@ -88,25 +142,17 @@ const EditMatch: React.FC = () => {
         predictionEnd: new Date(form.predictionEnd).toISOString(),
       });
 
-      toast.success(`Match ${form.matchNumber} updated successfully!`);
+      toast.success(`Fixture ${form.matchNumber} created!`);
       navigate('/admin');
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } }).response?.data?.message ||
-        'Failed to update match';
+        'Failed to create match';
       toast.error(msg);
     } finally {
       setIsLoading(false);
     }
   };
-
-  if (isFetching) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" text="Loading match..." />
-      </div>
-    );
-  }
 
   return (
     <div className="page-container max-w-3xl">
@@ -120,20 +166,118 @@ const EditMatch: React.FC = () => {
 
       <div className="mb-8">
         <h1 className="section-title flex items-center gap-2">
-          <Save size={28} className="text-blue-400" />
-          Edit Match #{form.matchNumber}
+          <Plus size={28} className="text-green-400" />
+          Create New Fixture
         </h1>
         <p className="text-gray-400 mt-1">
-          Update match details, teams, or prediction window.
+          Add a league, European, or international football match to the community predictions board.
         </p>
       </div>
 
+      <div className="mb-6">
+        <h2 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <Zap size={14} className="text-yellow-400" />
+          Upcoming football fixtures
+        </h2>
+
+        {espnLoading && (
+          <p className="text-gray-500 text-sm py-4">Loading upcoming fixtures...</p>
+        )}
+
+        {!espnLoading && upcomingESPN.length === 0 && (
+          <p className="text-gray-500 text-sm py-4">
+            No upcoming fixtures found — use the manual form below.
+          </p>
+        )}
+
+        {!espnLoading && upcomingESPN.length > 0 && (() => {
+          const byDate: Record<string, ESPNEvent[]> = {};
+          upcomingESPN.forEach((event) => {
+            const dateKey = format(new Date(event.date), 'yyyy-MM-dd');
+            if (!byDate[dateKey]) byDate[dateKey] = [];
+            byDate[dateKey].push(event);
+          });
+          const datesToShow = Object.keys(byDate).sort().slice(0, 2);
+
+          return (
+            <div className="space-y-5">
+              {datesToShow.map((dateKey) => (
+                <div key={dateKey}>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Calendar size={11} />
+                    {format(new Date(dateKey), 'EEEE, MMM d, yyyy')}
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {byDate[dateKey].map((event) => {
+                      const comp = event.competitions[0];
+                      const home = comp.competitors.find(c => c.homeAway === 'home') ?? comp.competitors[0];
+                      const away = comp.competitors.find(c => c.homeAway === 'away') ?? comp.competitors[1];
+                      const isSelected = selectedESPNId === event.id;
+
+                      return (
+                        <button
+                          key={event.id}
+                          type="button"
+                          onClick={() => handleSelectESPN(event)}
+                          className={`text-left p-4 rounded-xl border transition-all ${
+                            isSelected
+                              ? 'border-green-500 bg-green-500/10 ring-1 ring-green-500/40'
+                              : 'border-gray-700 bg-gray-800/50 hover:border-gray-500 hover:bg-gray-800'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-3">
+                            <Calendar size={11} />
+                            {format(new Date(event.date), 'HH:mm')}
+                            {isSelected && (
+                              <span className="ml-auto text-green-400 font-semibold">Selected ✓</span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              {home.team.logo ? (
+                                <img src={home.team.logo} alt="" className="w-7 h-7 object-contain flex-shrink-0" />
+                              ) : (
+                                <span className="text-2xl flex-shrink-0">{flagFor(home.team.displayName)}</span>
+                              )}
+                              <span className="text-sm font-semibold text-white truncate">
+                                {home.team.displayName}
+                              </span>
+                            </div>
+
+                            <span className="text-xs font-black text-gray-500 flex-shrink-0">VS</span>
+
+                            <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                              <span className="text-sm font-semibold text-white truncate text-right">
+                                {away.team.displayName}
+                              </span>
+                              {away.team.logo ? (
+                                <img src={away.team.logo} alt="" className="w-7 h-7 object-contain flex-shrink-0" />
+                              ) : (
+                                <span className="text-2xl flex-shrink-0">{flagFor(away.team.displayName)}</span>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+      </div>
+
       <div className="card animate-fade-in">
+        <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-6 flex items-center gap-2">
+          {selectedESPNId ? '✏️ Review & confirm details' : '✏️ Manual entry'}
+        </h2>
+
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Match Info */}
           <div>
             <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4 border-b border-gray-800 pb-2">
-              Match Details
+              Fixture details
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -150,28 +294,32 @@ const EditMatch: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="label" htmlFor="matchDate">Match Date & Time *</label>
-                <input
-                  id="matchDate"
-                  type="datetime-local"
-                  value={form.matchDate}
-                  onChange={(e) => set('matchDate', e.target.value)}
+                <label className="label" htmlFor="competition">Competition *</label>
+                <select
+                  id="competition"
+                  value={form.competition}
+                  onChange={(e) => set('competition', e.target.value)}
                   className="input-field"
                   required
-                />
+                >
+                  {defaultCompetitions.map((competition) => (
+                    <option key={competition} value={competition}>
+                      {competition}
+                    </option>
+                  ))}
+                  <option value="Custom">Custom</option>
+                </select>
               </div>
             </div>
           </div>
 
-          {/* Teams */}
           <div>
             <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4 border-b border-gray-800 pb-2">
               Teams
             </h3>
             <div className="grid grid-cols-2 gap-6">
-              {/* Team A */}
               <div className="space-y-3">
-                <p className="text-xs font-bold text-blue-400 uppercase tracking-wider">Team A (Home)</p>
+                <p className="text-xs font-bold text-blue-400 uppercase tracking-wider">Home team</p>
                 <div>
                   <label className="label" htmlFor="teamAName">Team Name *</label>
                   <input
@@ -186,7 +334,7 @@ const EditMatch: React.FC = () => {
                         teamAFlag: flagFor(name) || f.teamAFlag,
                       }));
                     }}
-                    placeholder="e.g. Brazil"
+                    placeholder="e.g. Arsenal"
                     className="input-field"
                     required
                     maxLength={60}
@@ -195,7 +343,7 @@ const EditMatch: React.FC = () => {
                 <div>
                   <label className="label" htmlFor="teamAFlag">
                     Flag Emoji
-                    <span className="text-gray-500 font-normal ml-1">(auto-filled from name)</span>
+                    <span className="text-gray-500 font-normal ml-1">(auto-filled)</span>
                   </label>
                   <input
                     id="teamAFlag"
@@ -209,9 +357,8 @@ const EditMatch: React.FC = () => {
                 </div>
               </div>
 
-              {/* Team B */}
               <div className="space-y-3">
-                <p className="text-xs font-bold text-green-400 uppercase tracking-wider">Team B (Away)</p>
+                <p className="text-xs font-bold text-green-400 uppercase tracking-wider">Away team</p>
                 <div>
                   <label className="label" htmlFor="teamBName">Team Name *</label>
                   <input
@@ -226,7 +373,7 @@ const EditMatch: React.FC = () => {
                         teamBFlag: flagFor(name) || f.teamBFlag,
                       }));
                     }}
-                    placeholder="e.g. Germany"
+                    placeholder="e.g. Chelsea"
                     className="input-field"
                     required
                     maxLength={60}
@@ -235,7 +382,7 @@ const EditMatch: React.FC = () => {
                 <div>
                   <label className="label" htmlFor="teamBFlag">
                     Flag Emoji
-                    <span className="text-gray-500 font-normal ml-1">(auto-filled from name)</span>
+                    <span className="text-gray-500 font-normal ml-1">(auto-filled)</span>
                   </label>
                   <input
                     id="teamBFlag"
@@ -250,7 +397,6 @@ const EditMatch: React.FC = () => {
               </div>
             </div>
 
-            {/* Preview */}
             {(form.teamAName || form.teamBName) && (
               <div className="mt-4 p-4 bg-gray-800/60 rounded-xl text-center border border-gray-700">
                 <p className="text-xs text-gray-500 mb-2">Preview</p>
@@ -269,10 +415,9 @@ const EditMatch: React.FC = () => {
             )}
           </div>
 
-          {/* Prediction Window */}
           <div>
             <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4 border-b border-gray-800 pb-2">
-              Prediction Window
+              Prediction window
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -300,23 +445,19 @@ const EditMatch: React.FC = () => {
             </div>
             <div className="mt-2 flex items-start gap-2 text-xs text-gray-500">
               <Info size={12} className="mt-0.5 flex-shrink-0" />
-              <span>
-                The prediction window determines when users can submit their picks.
-                Status updates automatically based on these times.
-              </span>
+              <span>Prediction status updates automatically based on those timestamps.</span>
             </div>
           </div>
 
-          {/* Auto-generated options notice */}
           {form.teamAName && form.teamBName && (
-            <div className="p-4 bg-blue-500/8 border border-blue-500/20 rounded-xl">
-              <p className="text-blue-400 text-sm font-semibold mb-2">
-                Prediction options (auto-updated on save):
+            <div className="p-4 bg-green-500/8 border border-green-500/20 rounded-xl">
+              <p className="text-green-400 text-sm font-semibold mb-2">
+                ✅ Auto-generated prediction choices:
               </p>
               <ul className="text-sm text-gray-300 space-y-1">
-                <li>&bull; {form.teamAFlag} {form.teamAName} Win</li>
-                <li>&bull; {'🤝'} Draw</li>
-                <li>&bull; {form.teamBFlag} {form.teamBName} Win</li>
+                <li>• {form.teamAFlag} {form.teamAName} Win</li>
+                <li>• 🤝 Draw</li>
+                <li>• {form.teamBFlag} {form.teamBName} Win</li>
               </ul>
             </div>
           )}
@@ -328,7 +469,7 @@ const EditMatch: React.FC = () => {
               disabled={isLoading}
               className="btn-primary flex-1 flex items-center justify-center gap-2"
             >
-              {isLoading ? 'Saving...' : <><Save size={16} />Save Changes</>}
+              {isLoading ? 'Creating...' : <><Plus size={16} />Create Fixture</>}
             </button>
           </div>
         </form>
@@ -337,4 +478,4 @@ const EditMatch: React.FC = () => {
   );
 };
 
-export default EditMatch;
+export default CreateMatch;

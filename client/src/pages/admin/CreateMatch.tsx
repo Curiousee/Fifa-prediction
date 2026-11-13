@@ -1,472 +1,284 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Plus, ArrowLeft, Info, Zap, Calendar } from 'lucide-react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
-import { matchAPI } from '../../services/api';
+import {
+  Trophy,
+  TrendingUp,
+  Target,
+  CheckCircle2,
+  Clock,
+  ChevronRight,
+  Swords,
+  Globe,
+} from 'lucide-react';
+import { useAuth } from '../context/useAuth';
+import { matchAPI, predictionAPI, leaderboardAPI } from '../services/api';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import StatCardGrid from '../components/ui/StatCard';
+import MatchCard from '../components/match/MatchCard';
+import FifaResults from '../components/FifaResults';
+import { usePredictions } from '../hooks/usePredictions';
+import type { Match, Prediction, LeaderboardEntry } from '../types';
 import toast from 'react-hot-toast';
-import { flagFor } from '../../utils/flagUtils';
 
-interface ESPNCompetitor {
-  team: { displayName: string; abbreviation: string; logo?: string };
-  homeAway: string;
-}
+const Dashboard: React.FC = () => {
+  const { user } = useAuth();
+  const [matches, setMatches] = useState<Match[]>([]);
+  const { myPredictions, setMyPredictions, predictingId, handlePredict, getPredictionForMatch } = usePredictions();
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-interface ESPNEvent {
-  id: string;
-  date: string;
-  competitions: Array<{ competitors: ESPNCompetitor[]; venue?: { fullName: string } }>;
-  season?: { slug: string };
-}
+  const myRank = leaderboard.find((e) => e.id === user?.id)?.rank;
 
-interface FormState {
-  matchNumber: string;
-  matchDate: string;
-  teamAName: string;
-  teamAFlag: string;
-  teamBName: string;
-  teamBFlag: string;
-  predictionStart: string;
-  predictionEnd: string;
-}
-
-const toLocalDatetime = (isoString: string): string => {
-  const d = new Date(isoString);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
-
-const CreateMatch: React.FC = () => {
-  const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
-  const [upcomingESPN, setUpcomingESPN] = useState<ESPNEvent[]>([]);
-  const [espnLoading, setEspnLoading] = useState(true);
-  const [selectedESPNId, setSelectedESPNId] = useState<string | null>(null);
-
-  const [form, setForm] = useState<FormState>({
-    matchNumber: '',
-    matchDate: '',
-    teamAName: '',
-    teamAFlag: '',
-    teamBName: '',
-    teamBFlag: '',
-    predictionStart: '',
-    predictionEnd: '',
-  });
-
-  const set = (key: keyof FormState, value: string) =>
-    setForm((f) => ({ ...f, [key]: value }));
-
-  // Fetch upcoming FIFA matches from ESPN
-  useEffect(() => {
-    const fetchUpcoming = async () => {
-      try {
-        const today = new Date();
-        const future = new Date(today);
-        future.setDate(future.getDate() + 14);
-        const fmt = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, '');
-        const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${fmt(today)}-${fmt(future)}&limit=40`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`ESPN API returned ${res.status}`);
-        const json = await res.json();
-        const events: ESPNEvent[] = (json.events || []).filter(
-          (e: ESPNEvent) => e.competitions?.[0]?.competitors?.length === 2
-        );
-        setUpcomingESPN(events);
-      } catch {
-        toast.error('Could not load upcoming FIFA matches from ESPN');
-      } finally {
-        setEspnLoading(false);
-      }
-    };
-    fetchUpcoming();
-  }, []);
-
-  const handleSelectESPN = (event: ESPNEvent) => {
-    setSelectedESPNId(event.id);
-    const comp = event.competitions[0];
-    const home = comp.competitors.find(c => c.homeAway === 'home') ?? comp.competitors[0];
-    const away = comp.competitors.find(c => c.homeAway === 'away') ?? comp.competitors[1];
-
-    const matchDateLocal = toLocalDatetime(event.date);
-    // Default prediction window: opens now, closes 5 min before kickoff
-    const kickoff = new Date(event.date);
-    const closesAt = new Date(kickoff.getTime() - 5 * 60 * 1000);
-    const opensAt = new Date();
-
-    setForm(f => ({
-      ...f,
-      teamAName: home.team.displayName,
-      teamAFlag: flagFor(home.team.displayName),
-      teamBName: away.team.displayName,
-      teamBFlag: flagFor(away.team.displayName),
-      matchDate: matchDateLocal,
-      predictionStart: toLocalDatetime(opensAt.toISOString()),
-      predictionEnd: toLocalDatetime(closesAt.toISOString()),
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (new Date(form.predictionEnd) <= new Date(form.predictionStart)) {
-      toast.error('Prediction end time must be after start time');
-      return;
-    }
-
-    setIsLoading(true);
+  const loadData = useCallback(async () => {
     try {
-      await matchAPI.create({
-        matchNumber: parseInt(form.matchNumber, 10),
-        matchDate: new Date(form.matchDate).toISOString(),
-        teamA: { name: form.teamAName.trim(), flag: form.teamAFlag.trim() },
-        teamB: { name: form.teamBName.trim(), flag: form.teamBFlag.trim() },
-        predictionStart: new Date(form.predictionStart).toISOString(),
-        predictionEnd: new Date(form.predictionEnd).toISOString(),
-      });
-
-      toast.success(`Match ${form.matchNumber} created! Prediction options auto-generated.`);
-      navigate('/admin');
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } }).response?.data?.message ||
-        'Failed to create match';
-      toast.error(msg);
+      const [matchRes, predRes, lbRes] = await Promise.all([
+        matchAPI.getAll(),
+        predictionAPI.getMy(),
+        leaderboardAPI.get(),
+      ]);
+      setMatches(matchRes.data as Match[]);
+      setMyPredictions(predRes.data as Prediction[]);
+      setLeaderboard(lbRes.data as LeaderboardEntry[]);
+    } catch {
+      toast.error('Failed to load dashboard data');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner size="lg" text="Loading your dashboard..." />
+      </div>
+    );
+  }
+
+  const openMatches = matches.filter((m) => m.status === 'open');
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const upcomingMatches = matches.filter(
+    (m) =>
+      m.status !== 'completed' &&
+      format(new Date(m.matchDate), 'yyyy-MM-dd') === todayStr
+  );
+  const completedMatches = matches.filter((m) => m.status === 'completed');
+  const correctPredictions = myPredictions.filter((p) => p.isCorrect === true).length;
+  const featuredCompetitions = Array.from(
+    new Set(matches.map((m) => m.competition || 'International'))
+  ).slice(0, 5);
 
   return (
-    <div className="page-container max-w-3xl">
-      <Link
-        to="/admin"
-        className="inline-flex items-center gap-2 text-gray-400 hover:text-white text-sm mb-8 transition-colors"
-      >
-        <ArrowLeft size={16} />
-        Back to Admin
-      </Link>
-
-      <div className="mb-8">
-        <h1 className="section-title flex items-center gap-2">
-          <Plus size={28} className="text-green-400" />
-          Create New Match
+    <div className="page-container">
+      <div className="mb-8 animate-fade-in">
+        <h1 className="text-3xl font-black text-white">
+          Welcome back, {user?.name?.split(' ')[0]}! ⚽
         </h1>
         <p className="text-gray-400 mt-1">
-          Pick an upcoming FIFA match or fill in the details manually.
+          Your football prediction overview across the season
         </p>
       </div>
 
-      {/* ── ESPN Upcoming Matches ─────────────────────────────── */}
-      <div className="mb-6">
-        <h2 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-          <Zap size={14} className="text-yellow-400" />
-          Upcoming FIFA World Cup 2026 Matches
-        </h2>
+      <StatCardGrid
+        items={[
+          {
+            label: 'Total Points',
+            value: user?.points?.toLocaleString() ?? '0',
+            icon: Trophy,
+            color: 'text-yellow-400',
+            bg: 'bg-yellow-500/10',
+            border: 'border-yellow-500/20',
+          },
+          {
+            label: 'Leaderboard Rank',
+            value: myRank ? `#${myRank}` : '—',
+            icon: TrendingUp,
+            color: 'text-green-400',
+            bg: 'bg-green-500/10',
+            border: 'border-green-500/20',
+          },
+          {
+            label: 'Predictions Made',
+            value: String(myPredictions.length),
+            icon: Target,
+            color: 'text-blue-400',
+            bg: 'bg-blue-500/10',
+            border: 'border-blue-500/20',
+          },
+          {
+            label: 'Correct Picks',
+            value: String(correctPredictions),
+            icon: CheckCircle2,
+            color: 'text-purple-400',
+            bg: 'bg-purple-500/10',
+            border: 'border-purple-500/20',
+          },
+        ]}
+      />
 
-        {espnLoading && (
-          <p className="text-gray-500 text-sm py-4">Loading upcoming matches...</p>
-        )}
-
-        {!espnLoading && upcomingESPN.length === 0 && (
-          <p className="text-gray-500 text-sm py-4">
-            No upcoming matches found — use the manual form below.
-          </p>
-        )}
-
-        {!espnLoading && upcomingESPN.length > 0 && (() => {
-          // Group by local date, show max 2 days
-          const byDate: Record<string, ESPNEvent[]> = {};
-          upcomingESPN.forEach((event) => {
-            const dateKey = format(new Date(event.date), 'yyyy-MM-dd');
-            if (!byDate[dateKey]) byDate[dateKey] = [];
-            byDate[dateKey].push(event);
-          });
-          const datesToShow = Object.keys(byDate).sort().slice(0, 2);
-
-          return (
-            <div className="space-y-5">
-              {datesToShow.map((dateKey) => (
-                <div key={dateKey}>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <Calendar size={11} />
-                    {format(new Date(dateKey), 'EEEE, MMM d, yyyy')}
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {byDate[dateKey].map((event) => {
-                      const comp = event.competitions[0];
-                      const home = comp.competitors.find(c => c.homeAway === 'home') ?? comp.competitors[0];
-                      const away = comp.competitors.find(c => c.homeAway === 'away') ?? comp.competitors[1];
-                      const isSelected = selectedESPNId === event.id;
-
-                      return (
-                        <button
-                          key={event.id}
-                          type="button"
-                          onClick={() => handleSelectESPN(event)}
-                          className={`text-left p-4 rounded-xl border transition-all ${
-                            isSelected
-                              ? 'border-green-500 bg-green-500/10 ring-1 ring-green-500/40'
-                              : 'border-gray-700 bg-gray-800/50 hover:border-gray-500 hover:bg-gray-800'
-                          }`}
-                        >
-                          {/* Time */}
-                          <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-3">
-                            <Calendar size={11} />
-                            {format(new Date(event.date), 'HH:mm')}
-                            {isSelected && (
-                              <span className="ml-auto text-green-400 font-semibold">Selected ✓</span>
-                            )}
-                          </div>
-
-                          {/* Teams */}
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              {home.team.logo ? (
-                                <img src={home.team.logo} alt="" className="w-7 h-7 object-contain flex-shrink-0" />
-                              ) : (
-                                <span className="text-2xl flex-shrink-0">{flagFor(home.team.displayName)}</span>
-                              )}
-                              <span className="text-sm font-semibold text-white truncate">
-                                {home.team.displayName}
-                              </span>
-                            </div>
-
-                            <span className="text-xs font-black text-gray-500 flex-shrink-0">VS</span>
-
-                            <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-                              <span className="text-sm font-semibold text-white truncate text-right">
-                                {away.team.displayName}
-                              </span>
-                              {away.team.logo ? (
-                                <img src={away.team.logo} alt="" className="w-7 h-7 object-contain flex-shrink-0" />
-                              ) : (
-                                <span className="text-2xl flex-shrink-0">{flagFor(away.team.displayName)}</span>
-                              )}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          );
-        })()}
+      <div className="mt-6 card mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <Globe size={16} className="text-green-400" />
+          <h2 className="text-lg font-bold text-white">Featured competitions</h2>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {featuredCompetitions.map((competition) => (
+            <span
+              key={competition}
+              className="inline-flex items-center rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1 text-xs font-medium text-green-300"
+            >
+              {competition}
+            </span>
+          ))}
+        </div>
       </div>
 
-      {/* ── Manual Form ──────────────────────────────────────── */}
-      <div className="card animate-fade-in">
-        <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-6 flex items-center gap-2">
-          {selectedESPNId ? '✏️ Review & Confirm Details' : '✏️ Manual Entry'}
-        </h2>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Match Info */}
-          <div>
-            <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4 border-b border-gray-800 pb-2">
-              Match Details
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="label" htmlFor="matchNumber">Match Number *</label>
-                <input
-                  id="matchNumber"
-                  type="number"
-                  min={1}
-                  value={form.matchNumber}
-                  onChange={(e) => set('matchNumber', e.target.value)}
-                  placeholder="e.g. 1"
-                  className="input-field"
-                  required
-                />
-              </div>
-              <div>
-                <label className="label" htmlFor="matchDate">Match Date & Time *</label>
-                <input
-                  id="matchDate"
-                  type="datetime-local"
-                  value={form.matchDate}
-                  onChange={(e) => set('matchDate', e.target.value)}
-                  className="input-field"
-                  required
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Teams */}
-          <div>
-            <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4 border-b border-gray-800 pb-2">
-              Teams
-            </h3>
-            <div className="grid grid-cols-2 gap-6">
-              {/* Team A */}
-              <div className="space-y-3">
-                <p className="text-xs font-bold text-blue-400 uppercase tracking-wider">Team A (Home)</p>
-                <div>
-                  <label className="label" htmlFor="teamAName">Team Name *</label>
-                  <input
-                    id="teamAName"
-                    type="text"
-                    value={form.teamAName}
-                    onChange={(e) => {
-                      const name = e.target.value;
-                      setForm((f) => ({
-                        ...f,
-                        teamAName: name,
-                        teamAFlag: flagFor(name) || f.teamAFlag,
-                      }));
-                    }}
-                    placeholder="e.g. Brazil"
-                    className="input-field"
-                    required
-                    maxLength={60}
-                  />
-                </div>
-                <div>
-                  <label className="label" htmlFor="teamAFlag">
-                    Flag Emoji
-                    <span className="text-gray-500 font-normal ml-1">(auto-filled from name)</span>
-                  </label>
-                  <input
-                    id="teamAFlag"
-                    type="text"
-                    value={form.teamAFlag}
-                    onChange={(e) => set('teamAFlag', e.target.value)}
-                    placeholder="🏳️"
-                    className="input-field text-2xl"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Team B */}
-              <div className="space-y-3">
-                <p className="text-xs font-bold text-green-400 uppercase tracking-wider">Team B (Away)</p>
-                <div>
-                  <label className="label" htmlFor="teamBName">Team Name *</label>
-                  <input
-                    id="teamBName"
-                    type="text"
-                    value={form.teamBName}
-                    onChange={(e) => {
-                      const name = e.target.value;
-                      setForm((f) => ({
-                        ...f,
-                        teamBName: name,
-                        teamBFlag: flagFor(name) || f.teamBFlag,
-                      }));
-                    }}
-                    placeholder="e.g. Germany"
-                    className="input-field"
-                    required
-                    maxLength={60}
-                  />
-                </div>
-                <div>
-                  <label className="label" htmlFor="teamBFlag">
-                    Flag Emoji
-                    <span className="text-gray-500 font-normal ml-1">(auto-filled from name)</span>
-                  </label>
-                  <input
-                    id="teamBFlag"
-                    type="text"
-                    value={form.teamBFlag}
-                    onChange={(e) => set('teamBFlag', e.target.value)}
-                    placeholder="🏳️"
-                    className="input-field text-2xl"
-                    required
-                  />
-                </div>
-              </div>
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse inline-block" />
+                Active Predictions
+              </h2>
+              <Link
+                to="/matches"
+                className="text-sm text-green-400 hover:text-green-300 flex items-center gap-1"
+              >
+                View all <ChevronRight size={14} />
+              </Link>
             </div>
 
-            {/* Preview */}
-            {(form.teamAName || form.teamBName) && (
-              <div className="mt-4 p-4 bg-gray-800/60 rounded-xl text-center border border-gray-700">
-                <p className="text-xs text-gray-500 mb-2">Preview</p>
-                <div className="flex items-center justify-center gap-4">
-                  <div className="text-center">
-                    <div className="text-3xl">{form.teamAFlag || '🏳️'}</div>
-                    <div className="text-white font-bold text-sm mt-1">{form.teamAName || 'Team A'}</div>
-                  </div>
-                  <span className="text-gray-500 font-black">VS</span>
-                  <div className="text-center">
-                    <div className="text-3xl">{form.teamBFlag || '🏳️'}</div>
-                    <div className="text-white font-bold text-sm mt-1">{form.teamBName || 'Team B'}</div>
-                  </div>
-                </div>
+            {openMatches.length === 0 ? (
+              <div className="card py-10 text-center">
+                <Clock size={32} className="text-gray-600 mx-auto mb-3" />
+                <p className="text-gray-400 font-medium">No active predictions right now</p>
+                <p className="text-gray-500 text-sm mt-1">Check back when fixtures open</p>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {openMatches.map((match) => (
+                  <MatchCard
+                    key={match._id}
+                    match={match}
+                    userChoice={getPredictionForMatch(match._id)}
+                    onPredict={handlePredict}
+                    isPredicting={predictingId === match._id}
+                  />
+                ))}
               </div>
             )}
+          </section>
+
+          {upcomingMatches.length > 0 && (
+            <section>
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Swords size={18} className="text-blue-400" />
+                Upcoming Today
+              </h2>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {upcomingMatches.map((match) => (
+                  <MatchCard
+                    key={match._id}
+                    match={match}
+                    showPollLink={false}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+
+        <div className="space-y-6">
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <Trophy size={16} className="text-yellow-400" />
+                Top Predictors
+              </h2>
+              <Link
+                to="/leaderboard"
+                className="text-xs text-green-400 hover:text-green-300"
+              >
+                Full table →
+              </Link>
+            </div>
+
+            <div className="space-y-2">
+              {leaderboard.slice(0, 5).map((entry) => {
+                const isMe = entry.id === user?.id;
+                return (
+                  <div
+                    key={entry.id}
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg ${
+                      isMe ? 'bg-green-500/10 border border-green-500/20' : 'bg-gray-800/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-xs font-bold text-gray-500 w-5">
+                        #{entry.rank}
+                      </span>
+                      <span className={`text-sm font-medium truncate max-w-[120px] ${isMe ? 'text-green-400' : 'text-white'}`}>
+                        {entry.name}
+                        {isMe && <span className="ml-1 text-xs">(you)</span>}
+                      </span>
+                    </div>
+                    <span className="text-yellow-400 font-bold text-sm flex-shrink-0">
+                      {entry.points.toLocaleString()}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Prediction Window */}
-          <div>
-            <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4 border-b border-gray-800 pb-2">
-              Prediction Window
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="label" htmlFor="predictionStart">Opens At *</label>
-                <input
-                  id="predictionStart"
-                  type="datetime-local"
-                  value={form.predictionStart}
-                  onChange={(e) => set('predictionStart', e.target.value)}
-                  className="input-field"
-                  required
-                />
-              </div>
-              <div>
-                <label className="label" htmlFor="predictionEnd">Closes At *</label>
-                <input
-                  id="predictionEnd"
-                  type="datetime-local"
-                  value={form.predictionEnd}
-                  onChange={(e) => set('predictionEnd', e.target.value)}
-                  className="input-field"
-                  required
-                />
-              </div>
-            </div>
-            <div className="mt-2 flex items-start gap-2 text-xs text-gray-500">
-              <Info size={12} className="mt-0.5 flex-shrink-0" />
-              <span>
-                The prediction window determines when users can submit their picks.
-                Status updates automatically based on these times.
-              </span>
-            </div>
-          </div>
+          <FifaResults />
 
-          {/* Auto-generated options notice */}
-          {form.teamAName && form.teamBName && (
-            <div className="p-4 bg-green-500/8 border border-green-500/20 rounded-xl">
-              <p className="text-green-400 text-sm font-semibold mb-2">
-                ✅ Auto-generated prediction options:
-              </p>
-              <ul className="text-sm text-gray-300 space-y-1">
-                <li>• {form.teamAFlag} {form.teamAName} Win</li>
-                <li>• 🤝 Draw</li>
-                <li>• {form.teamBFlag} {form.teamBName} Win</li>
-              </ul>
+          {completedMatches.length > 0 && (
+            <div className="card">
+              <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-green-400" />
+                Recent Results
+              </h2>
+              <div className="space-y-2">
+                {completedMatches.slice(-4).reverse().map((match) => {
+                  const myPred = getPredictionForMatch(match._id);
+                  const isCorrect = myPred && match.result ? myPred === match.result : null;
+                  return (
+                    <div key={match._id} className="flex items-center justify-between py-2 border-b border-gray-800 last:border-0">
+                      <div>
+                        <p className="text-sm text-white font-medium">
+                          {match.teamA.flag} vs {match.teamB.flag}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {match.competition || 'International'} • {format(new Date(match.matchDate), 'MMM d')}
+                        </p>
+                      </div>
+                      {isCorrect !== null && (
+                        <span
+                          className={`text-xs font-bold px-2 py-1 rounded-full ${
+                            isCorrect
+                              ? 'bg-green-500/15 text-green-400'
+                              : 'bg-red-500/15 text-red-400'
+                          }`}
+                        >
+                          {isCorrect ? '✅ +pts' : '❌ 0'}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
-
-          <div className="flex gap-3 pt-2">
-            <Link to="/admin" className="btn-secondary flex-1 text-center">Cancel</Link>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="btn-primary flex-1 flex items-center justify-center gap-2"
-            >
-              {isLoading ? 'Creating...' : <><Plus size={16} />Create Match</>}
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
     </div>
   );
 };
 
-export default CreateMatch;
+export default Dashboard;

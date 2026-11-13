@@ -1,103 +1,263 @@
-﻿import axios from 'axios';
+import { Request, Response } from 'express';
+import { body, validationResult } from 'express-validator';
+import Match from '../models/Match';
+import Prediction from '../models/Prediction';
+import User from '../models/User';
+import PointHistory from '../models/PointHistory';
+import { AuthRequest } from '../middleware/auth.middleware';
 
-const api = axios.create({
-  baseURL: '/api',
-  headers: { 'Content-Type': 'application/json' },
-});
+type MatchStatus = 'upcoming' | 'open' | 'closed' | 'completed';
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+const computeStatus = (match: {
+  status: MatchStatus;
+  predictionStart: Date;
+  predictionEnd: Date;
+}): MatchStatus => {
+  if (match.status === 'completed') return 'completed';
+  const now = new Date();
+  if (now < new Date(match.predictionStart)) return 'upcoming';
+  if (now <= new Date(match.predictionEnd)) return 'open';
+  return 'closed';
+};
+
+export const getAllMatches = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const matches = await Match.find().sort({ matchDate: 1, matchNumber: 1 });
+
+    const updates: Promise<unknown>[] = [];
+    const result = matches.map((match) => {
+      const newStatus = computeStatus(match);
+      if (newStatus !== match.status && match.status !== 'completed') {
+        updates.push(
+          Match.updateOne({ _id: match._id }, { status: newStatus })
+        );
+        match.status = newStatus;
+      }
+      return match;
+    });
+
+    await Promise.all(updates);
+    res.json(result);
+  } catch (error) {
+    console.error('getAllMatches error:', error);
+    res.status(500).json({ message: 'Error fetching matches' });
   }
-  return config;
-});
+};
 
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    const isAuthEndpoint =
-      error.config?.url?.includes('/auth/login') ||
-      error.config?.url?.includes('/auth/register');
-    if (error.response?.status === 401 && !isAuthEndpoint) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+export const getMatchById = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const match = await Match.findById(req.params['id']);
+    if (!match) {
+      res.status(404).json({ message: 'Match not found' });
+      return;
     }
-    return Promise.reject(error);
+    res.json(match);
+  } catch (error) {
+    console.error('getMatchById error:', error);
+    res.status(500).json({ message: 'Error fetching match' });
   }
-);
-
-// Auth endpoints
-export const authAPI = {
-  register: (data: { name: string; email: string; password: string }) =>
-    api.post('/auth/register', data),
-  login: (data: { email: string; password: string }) =>
-    api.post('/auth/login', data),
-  getMe: () => api.get('/auth/me'),
 };
 
-// Match endpoints
-export const matchAPI = {
-  getAll: () => api.get('/matches'),
-  getById: (id: string) => api.get(`/matches/${id}`),
-  create: (data: {
-    matchNumber: number;
-    matchDate: string;
-    teamA: { name: string; flag: string };
-    teamB: { name: string; flag: string };
-    predictionStart: string;
-    predictionEnd: string;
-  }) => api.post('/matches', data),
-  update: (id: string, data: Record<string, unknown>) =>
-    api.put(`/matches/${id}`, data),
-  delete: (id: string) => api.delete(`/matches/${id}`),
-  declareResult: (id: string, result: string) =>
-    api.post(`/matches/${id}/result`, { result }),
+export const createMatchValidation = [
+  body('matchNumber').isInt({ min: 1 }).withMessage('matchNumber must be a positive integer'),
+  body('competition').optional().trim().notEmpty().isLength({ max: 80 }).withMessage('competition must be 1-80 characters'),
+  body('matchDate').isISO8601().withMessage('matchDate must be a valid date'),
+  body('teamA.name').trim().notEmpty().withMessage('teamA.name is required').isLength({ max: 100 }),
+  body('teamA.flag').trim().notEmpty().withMessage('teamA.flag is required').isLength({ max: 10 }),
+  body('teamB.name').trim().notEmpty().withMessage('teamB.name is required').isLength({ max: 100 }),
+  body('teamB.flag').trim().notEmpty().withMessage('teamB.flag is required').isLength({ max: 10 }),
+  body('predictionStart').isISO8601().withMessage('predictionStart must be a valid date'),
+  body('predictionEnd').isISO8601().withMessage('predictionEnd must be a valid date'),
+];
+
+export const createMatch = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    res.status(400).json({ errors: errors.array() });
+    return;
+  }
+
+  try {
+    const {
+      matchNumber,
+      competition,
+      matchDate,
+      teamA,
+      teamB,
+      predictionStart,
+      predictionEnd,
+    } = req.body as {
+      matchNumber: number;
+      competition?: string;
+      matchDate: string;
+      teamA: { name: string; flag: string };
+      teamB: { name: string; flag: string };
+      predictionStart: string;
+      predictionEnd: string;
+    };
+
+    const existing = await Match.findOne({ matchNumber });
+    if (existing) {
+      res.status(400).json({ message: 'Match number already exists' });
+      return;
+    }
+
+    if (new Date(predictionEnd) <= new Date(predictionStart)) {
+      res.status(400).json({ message: 'Prediction end time must be after start time' });
+      return;
+    }
+
+    const match = await Match.create({
+      matchNumber,
+      competition: competition?.trim() || 'International',
+      matchDate,
+      teamA,
+      teamB,
+      predictionStart,
+      predictionEnd,
+    });
+
+    res.status(201).json(match);
+  } catch (error) {
+    console.error('createMatch error:', error);
+    res.status(500).json({ message: 'Error creating match' });
+  }
 };
 
-// Prediction endpoints
-export const predictionAPI = {
-  submit: (data: { matchId: string; choice: string }) =>
-    api.post('/predictions', data),
-  getMy: () => api.get('/predictions/my'),
-  getPollResults: (matchId: string) =>
-    api.get(`/predictions/poll/${matchId}`),
+const ALLOWED_MATCH_UPDATE_FIELDS = [
+  'matchNumber', 'competition', 'matchDate', 'teamA', 'teamB',
+  'predictionStart', 'predictionEnd', 'status',
+] as const;
+
+export const updateMatch = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const updates: Record<string, unknown> = {};
+    for (const key of ALLOWED_MATCH_UPDATE_FIELDS) {
+      if (key in req.body) {
+        updates[key] = req.body[key];
+      }
+    }
+
+    const match = await Match.findByIdAndUpdate(
+      req.params['id'],
+      updates,
+      { new: true, runValidators: true }
+    );
+    if (!match) {
+      res.status(404).json({ message: 'Match not found' });
+      return;
+    }
+    res.json(match);
+  } catch (error) {
+    console.error('updateMatch error:', error);
+    res.status(500).json({ message: 'Error updating match' });
+  }
 };
 
-// Leaderboard endpoints
-export const leaderboardAPI = {
-  get: () => api.get('/leaderboard'),
-  getDates: () => api.get('/leaderboard/daily'),
-  getDaily: (date: string) => api.get('/leaderboard/daily?date=' + date),
+export const deleteMatch = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const match = await Match.findById(req.params['id']);
+    if (!match) {
+      res.status(404).json({ message: 'Match not found' });
+      return;
+    }
+
+    await Prediction.deleteMany({ matchId: match._id });
+    await PointHistory.deleteMany({ matchId: match._id });
+    await Match.findByIdAndDelete(match._id);
+    res.json({ message: 'Match deleted successfully' });
+  } catch {
+    res.status(500).json({ message: 'Error deleting match' });
+  }
 };
 
-// Admin endpoints
-export const adminAPI = {
-  getStats: () => api.get('/admin/stats'),
-  getUsers: () => api.get('/admin/users'),
-  adjustPoints: (data: { userId: string; points: number; reason: string }) =>
-    api.post('/admin/points/adjust', data),
-  getPointHistory: (userId: string) =>
-    api.get(`/admin/points/history/${userId}`),
-  deleteUser: (userId: string) =>
-    api.delete(`/admin/users/${userId}`),
-  updateUserRole: (userId: string, role: 'admin' | 'user') =>
-    api.patch(`/admin/users/${userId}/role`, { role }),
-  updateScoreAccess: (userId: string, canChangeScores: boolean) =>
-    api.patch(`/admin/users/${userId}/score-access`, { canChangeScores }),
-  updateFullAccess: (userId: string, isSuperAdmin: boolean) =>
-    api.patch(`/admin/users/${userId}/full-access`, { isSuperAdmin }),
+export const declareResult = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?.isSuperAdmin && !req.user?.canChangeScores) {
+      res.status(403).json({ message: 'You do not have permission to declare results' });
+      return;
+    }
+
+    const { result } = req.body as { result: 'teamA' | 'teamB' | 'draw' };
+
+    if (!['teamA', 'teamB', 'draw'].includes(result)) {
+      res.status(400).json({ message: 'Invalid result value' });
+      return;
+    }
+
+    const match = await Match.findById(req.params['id']);
+    if (!match) {
+      res.status(404).json({ message: 'Match not found' });
+      return;
+    }
+
+    if (match.status === 'completed') {
+      res.status(400).json({ message: 'Result already declared' });
+      return;
+    }
+
+    match.result = result;
+    match.status = 'completed';
+    await match.save();
+
+    const correctPredictions = await Prediction.find({
+      matchId: match._id,
+      choice: result,
+    }).sort({ createdAt: 1 });
+
+    for (let index = 0; index < correctPredictions.length; index++) {
+      const prediction = correctPredictions[index];
+      const totalPoints = index === 0 ? 2 : 1;
+      const isFirst = index === 0;
+
+      prediction.isCorrect = true;
+      prediction.pointsAwarded = totalPoints;
+      await prediction.save();
+
+      await User.findByIdAndUpdate(prediction.userId, {
+        $inc: { points: totalPoints },
+      });
+
+      const note = isFirst ? ' (first correct pick — 2 pts)' : ' (1 pt)';
+      await PointHistory.create({
+        userId: prediction.userId,
+        points: totalPoints,
+        reason: `Correct prediction for Match ${match.matchNumber}: ${match.teamA.name} vs ${match.teamB.name}${note}`,
+        addedByAdmin: false,
+        matchId: match._id,
+      });
+    }
+
+    await Prediction.updateMany(
+      { matchId: match._id, choice: { $ne: result } },
+      { isCorrect: false, pointsAwarded: 0 }
+    );
+
+    res.json({
+      message: 'Result declared and points awarded',
+      match,
+      correctCount: correctPredictions.length,
+    });
+  } catch (err) {
+    console.error('declareResult error:', err);
+    res.status(500).json({ message: 'Error declaring result' });
+  }
 };
-
-// Comment endpoints
-export const commentsAPI = {
-  getGeneral: () => api.get('/comments/general'),
-  getMatch: (matchId: string) => api.get(`/comments/match/${matchId}`),
-  post: (data: { text: string; type: 'general' | 'match'; matchId?: string }) =>
-    api.post('/comments', data),
-  delete: (id: string) => api.delete(`/comments/${id}`),
-};
-
-export default api;
-
-

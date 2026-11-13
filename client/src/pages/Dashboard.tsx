@@ -1,46 +1,33 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { format } from 'date-fns';
-import {
-  Trophy,
-  TrendingUp,
-  Target,
-  CheckCircle2,
-  Clock,
-  ChevronRight,
-  Swords,
-} from 'lucide-react';
-import { useAuth } from '../context/useAuth';
-import { matchAPI, predictionAPI, leaderboardAPI } from '../services/api';
+import { Swords } from 'lucide-react';
+import { matchAPI, predictionAPI } from '../services/api';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
-import StatCardGrid from '../components/ui/StatCard';
+import SearchInput from '../components/ui/SearchInput';
 import MatchCard from '../components/match/MatchCard';
-import FifaResults from '../components/FifaResults';
 import { usePredictions } from '../hooks/usePredictions';
-import type { Match, Prediction, LeaderboardEntry } from '../types';
+import type { Match, Prediction } from '../types';
 import toast from 'react-hot-toast';
 
-const Dashboard: React.FC = () => {
-  const { user } = useAuth();
-  const [matches, setMatches] = useState<Match[]>([]);
-  const { myPredictions, setMyPredictions, predictingId, handlePredict, getPredictionForMatch } = usePredictions();
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+type FilterStatus = 'all' | 'open' | 'upcoming' | 'closed' | 'completed';
 
-  const myRank = leaderboard.find((e) => e.id === user?.id)?.rank;
+const Matches: React.FC = () => {
+  const [matches, setMatches] = useState<Match[]>([]);
+  const { setMyPredictions, predictingId, handlePredict, getPredictionForMatch } = usePredictions();
+  const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState<FilterStatus>('all');
+  const [competitionFilter, setCompetitionFilter] = useState<string>('all');
+  const [search, setSearch] = useState('');
 
   const loadData = useCallback(async () => {
     try {
-      const [matchRes, predRes, lbRes] = await Promise.all([
+      const [mRes, pRes] = await Promise.all([
         matchAPI.getAll(),
         predictionAPI.getMy(),
-        leaderboardAPI.get(),
       ]);
-      setMatches(matchRes.data as Match[]);
-      setMyPredictions(predRes.data as Prediction[]);
-      setLeaderboard(lbRes.data as LeaderboardEntry[]);
+      setMatches(mRes.data as Match[]);
+      setMyPredictions(pRes.data as Prediction[]);
     } catch {
-      toast.error('Failed to load dashboard data');
+      toast.error('Failed to load matches');
     } finally {
       setIsLoading(false);
     }
@@ -50,225 +37,147 @@ const Dashboard: React.FC = () => {
     loadData();
   }, [loadData]);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" text="Loading your dashboard..." />
-      </div>
-    );
-  }
+  const competitionOptions = Array.from(
+    new Set(matches.map((m) => m.competition || 'International'))
+  ).sort();
 
-  const openMatches = matches.filter((m) => m.status === 'open');
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const upcomingMatches = matches.filter(
-    (m) =>
-      m.status !== 'completed' &&
-      format(new Date(m.matchDate), 'yyyy-MM-dd') === todayStr
-  );
-  const completedMatches = matches.filter((m) => m.status === 'completed');
-  const correctPredictions = myPredictions.filter((p) => p.isCorrect === true).length;
+  const filtered = matches
+    .filter((m) => filter === 'all' || m.status === filter)
+    .filter((m) => {
+      const competition = m.competition || 'International';
+      return competitionFilter === 'all' || competition === competitionFilter;
+    })
+    .filter((m) => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return (
+        m.teamA.name.toLowerCase().includes(q) ||
+        m.teamB.name.toLowerCase().includes(q) ||
+        (m.competition || 'International').toLowerCase().includes(q)
+      );
+    });
+
+  const statusCounts: Record<FilterStatus, number> = {
+    all: matches.length,
+    open: matches.filter((m) => m.status === 'open').length,
+    upcoming: matches.filter((m) => m.status === 'upcoming').length,
+    closed: matches.filter((m) => m.status === 'closed').length,
+    completed: matches.filter((m) => m.status === 'completed').length,
+  };
+
+  const filterOptions: { key: FilterStatus; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'open', label: '🟢 Open' },
+    { key: 'upcoming', label: 'Upcoming' },
+    { key: 'closed', label: 'Closed' },
+    { key: 'completed', label: 'Completed' },
+  ];
 
   return (
     <div className="page-container">
-      {/* Welcome */}
-      <div className="mb-8 animate-fade-in">
-        <h1 className="text-3xl font-black text-white">
-          Welcome back, {user?.name?.split(' ')[0]}! ⚽
-        </h1>
-        <p className="text-gray-400 mt-1">
-          Here&apos;s your prediction overview for today
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+          <h1 className="section-title flex items-center gap-2">
+            <Swords size={28} className="text-green-400" />
+            All Matches
+          </h1>
+          <p className="text-gray-400 mt-1 text-sm">
+            {matches.length} total fixtures across the football season
+          </p>
+        </div>
+
+        <SearchInput value={search} onChange={setSearch} placeholder="Search teams or competitions..." />
       </div>
 
-      {/* Stats Grid */}
-      <StatCardGrid
-        items={[
-          {
-            label: 'Total Points',
-            value: user?.points?.toLocaleString() ?? '0',
-            icon: Trophy,
-            color: 'text-yellow-400',
-            bg: 'bg-yellow-500/10',
-            border: 'border-yellow-500/20',
-          },
-          {
-            label: 'Leaderboard Rank',
-            value: myRank ? `#${myRank}` : '—',
-            icon: TrendingUp,
-            color: 'text-green-400',
-            bg: 'bg-green-500/10',
-            border: 'border-green-500/20',
-          },
-          {
-            label: 'Predictions Made',
-            value: String(myPredictions.length),
-            icon: Target,
-            color: 'text-blue-400',
-            bg: 'bg-blue-500/10',
-            border: 'border-blue-500/20',
-          },
-          {
-            label: 'Correct Picks',
-            value: String(correctPredictions),
-            icon: CheckCircle2,
-            color: 'text-purple-400',
-            bg: 'bg-purple-500/10',
-            border: 'border-purple-500/20',
-          },
-        ]}
-      />
-
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left column — matches */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Open Matches */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse inline-block" />
-                Active Predictions
-              </h2>
-              <Link
-                to="/matches"
-                className="text-sm text-green-400 hover:text-green-300 flex items-center gap-1"
+      <div className="flex gap-2 flex-wrap mb-6">
+        {filterOptions.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setFilter(key)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border ${
+              filter === key
+                ? 'bg-green-600 border-green-600 text-white'
+                : 'bg-gray-800/60 border-gray-700 text-gray-300 hover:border-gray-600'
+            }`}
+          >
+            {label}
+            {statusCounts[key] > 0 && (
+              <span
+                className={`ml-1.5 text-xs ${
+                  filter === key ? 'text-green-100' : 'text-gray-500'
+                }`}
               >
-                View all <ChevronRight size={14} />
-              </Link>
-            </div>
-
-            {openMatches.length === 0 ? (
-              <div className="card py-10 text-center">
-                <Clock size={32} className="text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-400 font-medium">No active predictions right now</p>
-                <p className="text-gray-500 text-sm mt-1">
-                  Check back when matches open
-                </p>
-              </div>
-            ) : (
-              <div className="grid sm:grid-cols-2 gap-4">
-                {openMatches.map((match) => (
-                  <MatchCard
-                    key={match._id}
-                    match={match}
-                    userChoice={getPredictionForMatch(match._id)}
-                    onPredict={handlePredict}
-                    isPredicting={predictingId === match._id}
-                  />
-                ))}
-              </div>
+                ({statusCounts[key]})
+              </span>
             )}
-          </section>
+          </button>
+        ))}
+      </div>
 
-          {/* Upcoming */}
-          {upcomingMatches.length > 0 && (
-            <section>
-              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <Swords size={18} className="text-blue-400" />
-                Upcoming Matches
-              </h2>
-              <div className="grid sm:grid-cols-2 gap-4">
-                {upcomingMatches.map((match) => (
-                  <MatchCard
-                    key={match._id}
-                    match={match}
-                    showPollLink={false}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Competitions</h2>
         </div>
-
-        {/* Right column — leaderboard preview & recent */}
-        <div className="space-y-6">
-          {/* Mini leaderboard */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Trophy size={16} className="text-yellow-400" />
-                Top Predictors
-              </h2>
-              <Link
-                to="/leaderboard"
-                className="text-xs text-green-400 hover:text-green-300"
-              >
-                Full table →
-              </Link>
-            </div>
-
-            <div className="space-y-2">
-              {leaderboard.slice(0, 5).map((entry) => {
-                const isMe = entry.id === user?.id;
-                return (
-                  <div
-                    key={entry.id}
-                    className={`flex items-center justify-between px-3 py-2 rounded-lg ${
-                      isMe ? 'bg-green-500/10 border border-green-500/20' : 'bg-gray-800/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-xs font-bold text-gray-500 w-5">
-                        #{entry.rank}
-                      </span>
-                      <span className={`text-sm font-medium truncate max-w-[120px] ${isMe ? 'text-green-400' : 'text-white'}`}>
-                        {entry.name}
-                        {isMe && <span className="ml-1 text-xs">(you)</span>}
-                      </span>
-                    </div>
-                    <span className="text-yellow-400 font-bold text-sm flex-shrink-0">
-                      {entry.points.toLocaleString()}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* FIFA Live Results */}
-          <FifaResults />
-
-          {/* Recent correct predictions */}
-          {completedMatches.length > 0 && (
-            <div className="card">
-              <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-green-400" />
-                Recent Results
-              </h2>
-              <div className="space-y-2">
-                {completedMatches.slice(-4).reverse().map((match) => {
-                  const myPred = getPredictionForMatch(match._id);
-                  const isCorrect = myPred && match.result ? myPred === match.result : null;
-                  return (
-                    <div key={match._id} className="flex items-center justify-between py-2 border-b border-gray-800 last:border-0">
-                      <div>
-                        <p className="text-sm text-white font-medium">
-                          {match.teamA.flag} vs {match.teamB.flag}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {format(new Date(match.matchDate), 'MMM d')}
-                        </p>
-                      </div>
-                      {isCorrect !== null && (
-                        <span
-                          className={`text-xs font-bold px-2 py-1 rounded-full ${
-                            isCorrect
-                              ? 'bg-green-500/15 text-green-400'
-                              : 'bg-red-500/15 text-red-400'
-                          }`}
-                        >
-                          {isCorrect ? '✅ +pts' : '❌ 0'}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setCompetitionFilter('all')}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
+              competitionFilter === 'all'
+                ? 'bg-blue-600 border-blue-600 text-white'
+                : 'bg-gray-800/60 border-gray-700 text-gray-300 hover:border-gray-600'
+            }`}
+          >
+            All
+          </button>
+          {competitionOptions.map((option) => (
+            <button
+              key={option}
+              onClick={() => setCompetitionFilter(option)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
+                competitionFilter === option
+                  ? 'bg-blue-600 border-blue-600 text-white'
+                  : 'bg-gray-800/60 border-gray-700 text-gray-300 hover:border-gray-600'
+              }`}
+            >
+              {option}
+            </button>
+          ))}
         </div>
       </div>
+
+      {isLoading ? (
+        <LoadingSpinner size="lg" text="Loading fixtures..." />
+      ) : filtered.length === 0 ? (
+        <div className="card text-center py-16">
+          <Swords size={48} className="text-gray-700 mx-auto mb-4" />
+          <p className="text-gray-400 font-medium">No matches found</p>
+          {(search || competitionFilter !== 'all') && (
+            <button
+              onClick={() => {
+                setSearch('');
+                setCompetitionFilter('all');
+              }}
+              className="text-green-400 text-sm mt-2 hover:text-green-300"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
+          {filtered.map((match) => (
+            <MatchCard
+              key={match._id}
+              match={match}
+              userChoice={getPredictionForMatch(match._id)}
+              onPredict={match.status === 'open' ? handlePredict : undefined}
+              isPredicting={predictingId === match._id}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };
 
-export default Dashboard;
+export default Matches;

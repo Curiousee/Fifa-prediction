@@ -23,6 +23,7 @@ export type MatchResult = 'teamA' | 'teamB' | 'draw' | null;
 export interface Match {
   _id: string;
   matchNumber: number;
+  competition: string;
   matchDate: string;
   teamA: Team;
   teamB: Team;
@@ -67,7 +68,6 @@ export interface LeaderboardEntry {
 export interface DailyLeaderboardEntry {
   rank: number;
   id: string;
-  name: string;
   points: number;
   correctPicks: number;
 }
@@ -101,4 +101,3 @@ export interface AuthContextType {
   logout: () => void;
   isLoading: boolean;
 }
-

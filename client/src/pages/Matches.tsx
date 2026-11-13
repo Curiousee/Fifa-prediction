@@ -1,142 +1,183 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Swords } from 'lucide-react';
-import { matchAPI, predictionAPI } from '../services/api';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
-import SearchInput from '../components/ui/SearchInput';
-import MatchCard from '../components/match/MatchCard';
-import { usePredictions } from '../hooks/usePredictions';
-import type { Match, Prediction } from '../types';
-import toast from 'react-hot-toast';
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { format } from 'date-fns';
+import { Clock, Trophy, ChevronRight, CheckCircle2, Lock } from 'lucide-react';
+import type { Match, PredictionChoice } from '../../types';
+import MatchComments from '../MatchComments';
 
-type FilterStatus = 'all' | 'open' | 'upcoming' | 'closed' | 'completed';
+interface MatchCardProps {
+  match: Match;
+  userChoice?: PredictionChoice | null;
+  onPredict?: (matchId: string, choice: PredictionChoice) => void;
+  isPredicting?: boolean;
+  showPollLink?: boolean;
+  showComments?: boolean;
+}
 
-const Matches: React.FC = () => {
-  const [matches, setMatches] = useState<Match[]>([]);
-  const { setMyPredictions, predictingId, handlePredict, getPredictionForMatch } = usePredictions();
-  const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState<FilterStatus>('all');
-  const [search, setSearch] = useState('');
+const statusConfig = {
+  upcoming: { label: 'Upcoming', className: 'badge-upcoming' },
+  open: { label: '🟢 Open', className: 'badge-open' },
+  closed: { label: 'Closed', className: 'badge-closed' },
+  completed: { label: 'Completed', className: 'badge-completed' },
+};
 
-  const loadData = useCallback(async () => {
-    try {
-      const [mRes, pRes] = await Promise.all([
-        matchAPI.getAll(),
-        predictionAPI.getMy(),
-      ]);
-      setMatches(mRes.data as Match[]);
-      setMyPredictions(pRes.data as Prediction[]);
-    } catch {
-      toast.error('Failed to load matches');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+const MatchCard: React.FC<MatchCardProps> = ({
+  match,
+  userChoice,
+  onPredict,
+  isPredicting = false,
+  showPollLink = true,
+  showComments = true,
+}) => {
+  const statusCfg = statusConfig[match.status];
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  const filtered = matches
-    .filter((m) => filter === 'all' || m.status === filter)
-    .filter((m) => {
-      if (!search.trim()) return true;
-      const q = search.toLowerCase();
-      return (
-        m.teamA.name.toLowerCase().includes(q) ||
-        m.teamB.name.toLowerCase().includes(q)
-      );
-    });
-
-  const statusCounts: Record<FilterStatus, number> = {
-    all: matches.length,
-    open: matches.filter((m) => m.status === 'open').length,
-    upcoming: matches.filter((m) => m.status === 'upcoming').length,
-    closed: matches.filter((m) => m.status === 'closed').length,
-    completed: matches.filter((m) => m.status === 'completed').length,
+  const getResultLabel = () => {
+    if (!match.result) return null;
+    if (match.result === 'teamA') return `${match.teamA.flag} ${match.teamA.name} Win`;
+    if (match.result === 'teamB') return `${match.teamB.flag} ${match.teamB.name} Win`;
+    return 'Draw';
   };
 
-  const filterOptions: { key: FilterStatus; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'open', label: '🟢 Open' },
-    { key: 'upcoming', label: 'Upcoming' },
-    { key: 'closed', label: 'Closed' },
-    { key: 'completed', label: 'Completed' },
+  const isCorrect =
+    userChoice && match.result ? userChoice === match.result : null;
+
+  const choiceOptions: { choice: PredictionChoice; label: string }[] = [
+    {
+      choice: 'teamA',
+      label: `${match.teamA.flag} ${match.teamA.name} Win`,
+    },
+    { choice: 'draw', label: '🤝 Draw' },
+    {
+      choice: 'teamB',
+      label: `${match.teamB.flag} ${match.teamB.name} Win`,
+    },
   ];
 
   return (
-    <div className="page-container">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="section-title flex items-center gap-2">
-            <Swords size={28} className="text-green-400" />
-            All Matches
-          </h1>
-          <p className="text-gray-400 mt-1 text-sm">
-            {matches.length} total matches
-          </p>
+    <div className="card-hover animate-fade-in">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+          {match.competition || 'International'}
+        </span>
+        <span className={statusCfg.className}>{statusCfg.label}</span>
+      </div>
+
+      <div className="flex items-center justify-between gap-4 py-4">
+        <div className="flex-1 text-center">
+          <div className="text-4xl mb-2">{match.teamA.flag}</div>
+          <div className="font-bold text-white text-sm sm:text-base leading-tight">
+            {match.teamA.name}
+          </div>
         </div>
 
-        {/* Search */}
-        <SearchInput value={search} onChange={setSearch} placeholder="Search teams..." />
+        <div className="flex flex-col items-center gap-1 flex-shrink-0">
+          <div className="w-10 h-10 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center font-black text-sm text-gray-400">
+            VS
+          </div>
+          <div className="flex items-center gap-1 text-xs text-gray-500">
+            <Clock size={11} />
+            {format(new Date(match.matchDate), 'MMM d')}
+          </div>
+        </div>
+
+        <div className="flex-1 text-center">
+          <div className="text-4xl mb-2">{match.teamB.flag}</div>
+          <div className="font-bold text-white text-sm sm:text-base leading-tight">
+            {match.teamB.name}
+          </div>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-2 flex-wrap mb-6">
-        {filterOptions.map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setFilter(key)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border ${
-              filter === key
-                ? 'bg-green-600 border-green-600 text-white'
-                : 'bg-gray-800/60 border-gray-700 text-gray-300 hover:border-gray-600'
-            }`}
-          >
-            {label}
-            {statusCounts[key] > 0 && (
-              <span
-                className={`ml-1.5 text-xs ${
-                  filter === key ? 'text-green-100' : 'text-gray-500'
-                }`}
-              >
-                ({statusCounts[key]})
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {isLoading ? (
-        <LoadingSpinner size="lg" text="Loading matches..." />
-      ) : filtered.length === 0 ? (
-        <div className="card text-center py-16">
-          <Swords size={48} className="text-gray-700 mx-auto mb-4" />
-          <p className="text-gray-400 font-medium">No matches found</p>
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="text-green-400 text-sm mt-2 hover:text-green-300"
+      {match.status === 'completed' && match.result && (
+        <div className="mb-4 px-4 py-2.5 bg-yellow-500/10 border border-yellow-500/25 rounded-xl text-center">
+          <div className="flex items-center justify-center gap-2">
+            <Trophy size={15} className="text-yellow-400" />
+            <span className="text-yellow-400 font-bold text-sm">
+              Result: {getResultLabel()}
+            </span>
+          </div>
+          {userChoice && (
+            <div
+              className={`mt-1 text-xs font-semibold ${
+                isCorrect ? 'text-green-400' : 'text-red-400'
+              }`}
             >
-              Clear search
-            </button>
+              {isCorrect ? '✅ Correct prediction!' : '❌ Incorrect prediction'}
+            </div>
           )}
         </div>
-      ) : (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
-          {filtered.map((match) => (
-            <MatchCard
-              key={match._id}
-              match={match}
-              userChoice={getPredictionForMatch(match._id)}
-              onPredict={match.status === 'open' ? handlePredict : undefined}
-              isPredicting={predictingId === match._id}
-            />
-          ))}
+      )}
+
+      {match.status === 'open' && !userChoice && onPredict && (
+        <div className="mt-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 text-center">
+            Choose your prediction
+          </p>
+          <div className="flex flex-col gap-2">
+            {choiceOptions.map(({ choice, label }) => (
+              <button
+                key={choice}
+                onClick={() => onPredict(match._id, choice)}
+                disabled={isPredicting}
+                className="w-full py-2.5 px-4 rounded-xl border border-gray-700 text-gray-300 hover:border-green-500/60 hover:bg-green-500/10 hover:text-white transition-all text-sm font-medium"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
+      )}
+
+      {userChoice && match.status !== 'completed' && (
+        <div className="mt-3 flex items-center gap-2 px-4 py-2.5 bg-green-500/10 border border-green-500/25 rounded-xl">
+          <CheckCircle2 size={16} className="text-green-400 flex-shrink-0" />
+          <span className="text-green-400 text-sm font-medium">
+            Your prediction:{' '}
+            {choiceOptions.find((o) => o.choice === userChoice)?.label}
+          </span>
+        </div>
+      )}
+
+      {match.status === 'closed' && !userChoice && (
+        <div className="mt-3 flex items-center gap-2 px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-xl">
+          <Lock size={15} className="text-gray-500 flex-shrink-0" />
+          <span className="text-gray-500 text-sm">Predictions closed</span>
+        </div>
+      )}
+
+      {match.status === 'upcoming' && (
+        <div className="mt-3 flex items-center gap-2 px-4 py-2.5 bg-blue-500/10 border border-blue-500/25 rounded-xl">
+          <Clock size={15} className="text-blue-400 flex-shrink-0" />
+          <span className="text-blue-400 text-sm">
+            Opens {format(new Date(match.predictionStart), 'MMM d, h:mm a')}
+          </span>
+        </div>
+      )}
+
+      {match.status === 'open' && (
+        <div className="mt-2 flex items-center gap-2 px-3 py-1.5 text-xs text-gray-500">
+          <Clock size={11} />
+          Closes {format(new Date(match.predictionEnd), 'MMM d, h:mm a')}
+        </div>
+      )}
+
+      {showComments && (
+        <MatchComments
+          matchId={match._id}
+          matchLabel={`${match.teamA.flag} ${match.teamA.name} vs ${match.teamB.flag} ${match.teamB.name}`}
+        />
+      )}
+
+      {showPollLink && (match.status === 'closed' || match.status === 'completed' || userChoice) && (
+        <Link
+          to={`/matches/${match._id}/poll`}
+          className="mt-3 flex items-center justify-center gap-1.5 text-green-400 hover:text-green-300 text-sm font-medium transition-colors"
+        >
+          View community predictions <ChevronRight size={14} />
+        </Link>
       )}
     </div>
   );
 };
 
-export default Matches;
+export default MatchCard;
